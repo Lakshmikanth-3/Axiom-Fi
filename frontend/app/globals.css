@@ -1,0 +1,220 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  /* Backgrounds */
+  --bg-base:     #050810;
+  --bg-surface:  #080d1a;
+  --bg-elevated: #0d1425;
+
+  /* Borders */
+  --border:        #1a2440;
+  --border-accent: #1e3a6e;
+
+  /* Blue scale */
+  --blue-primary: #2563eb;
+  --blue-bright:  #3b82f6;
+  --blue-glow:    #60a5fa;
+  --blue-dim:     #1d4ed8;
+
+  /* Text */
+  --text-primary:   #f0f4ff;
+  --text-secondary: #8ba3cc;
+  --text-muted:     #4a6088;
+  --text-mono:      #7dd3fc;
+
+  /* Status */
+  --green: #22c55e;
+  --red:   #ef4444;
+  --amber: #f59e0b;
+
+  /* Reputation tiers */
+  --rep-bronze: #cd7f32;
+  --rep-silver: #94a3b8;
+  --rep-gold:   #f59e0b;
+  --rep-axiom:  #60a5fa;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--blue-primary); }
+
+/* ── Typography helpers ─────────────────────────────────────────────── */
+.mono { font-family: 'Space Mono', monospace; }
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+.text-mono-val  { color: var(--text-mono); }
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+@keyframes meshShift {
+  0%   { background-position: 20% 40%, 80% 60%, center; }
+  100% { background-position: 35% 55%, 65% 45%, center; }
+}
+
+@keyframes feedIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes activePulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3), 0 0 12px rgba(37, 99, 235, 0.1); }
+  50%       { box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.7), 0 0 24px rgba(96, 165, 250, 0.25); }
+}
+
+@keyframes axiomGlow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.4), 0 0 20px rgba(96, 165, 250, 0.15); }
+  50%       { box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.8), 0 0 35px rgba(96, 165, 250, 0.3); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes paymentFlash {
+  0%   { color: var(--text-mono); }
+  30%  { color: var(--green); }
+  100% { color: var(--text-mono); }
+}
+
+/* ── Utility classes ────────────────────────────────────────────────── */
+.animate-feed-in    { animation: feedIn 0.3s ease-out forwards; }
+.animate-fade-up    { animation: fadeUp 0.5s ease-out forwards; }
+.animate-pulse-border { animation: activePulse 2s ease-in-out infinite; }
+.animate-axiom-glow   { animation: axiomGlow 3s ease-in-out infinite; }
+.animate-cursor     { animation: blink 1s step-end infinite; }
+
+/* ── Glass panel ────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(8, 13, 26, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(30, 58, 110, 0.5);
+}
+
+/* ── Card surface ───────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* ── Button primitives ──────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--blue-primary);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-primary:hover {
+  background: var(--blue-bright);
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.btn-ghost:hover {
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+
+/* ── Divider ────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: rgba(30, 58, 110, 0.6);
+}
+
+/* ── Label caps ─────────────────────────────────────────────────────── */
+.label-caps {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Tx hash link ───────────────────────────────────────────────────── */
+.tx-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-mono);
+  text-decoration: none;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+.tx-link:hover {
+  color: var(--blue-glow);
+  text-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
+
+/* ── Status dot ─────────────────────────────────────────────────────── */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.status-dot.idle    { background: var(--text-muted); }
+.status-dot.working { background: var(--green); box-shadow: 0 0 6px var(--green); animation: activePulse 1.5s ease-in-out infinite; }
+.status-dot.waiting { background: var(--amber); }
