@@ -86,6 +86,29 @@ export default function AgentStatusCard({ agent }: { agent: AgentInfo }) {
           </div>
         </div>
       </div>
+      
+      {/* Proof Link */}
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+        <a 
+          href="https://sepolia.basescan.org/address/0x3c69d3277fC72fdf52eABD96195253A836BaB427" 
+          target="_blank" 
+          rel="noreferrer"
+          style={{ 
+            fontSize: '0.65rem', 
+            fontFamily: "'Space Mono'", 
+            color: 'var(--blue-glow)',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            opacity: 0.8
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.8'}
+        >
+          VIEW ON BASESCAN ↗
+        </a>
+      </div>
     </div>
   )
 }

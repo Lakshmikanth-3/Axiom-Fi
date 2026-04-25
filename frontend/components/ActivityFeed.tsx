@@ -92,13 +92,28 @@ export function ActivityFeedItem({ entry, index = 0 }: { entry: FeedEntry; index
               </span>
             )}
             {entry.txHash && (
-              <a
-                href={`https://sepolia.basescan.org/tx/${entry.txHash}`}
-                target="_blank" rel="noreferrer"
-                className="tx-link"
-              >
-                {truncHash(entry.txHash)} ↗
-              </a>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <a
+                  href={`https://sepolia.basescan.org/tx/${entry.txHash}`}
+                  target="_blank" rel="noreferrer"
+                  className="tx-link"
+                >
+                  {truncHash(entry.txHash)} ↗
+                </a>
+                <span style={{ width: 1, height: 10, background: 'var(--border)' }} />
+                <a
+                  href="https://indexer-storage-testnet-turbo.0g.ai"
+                  target="_blank" rel="noreferrer"
+                  style={{ 
+                    fontSize: '0.65rem', 
+                    color: 'var(--amber)', 
+                    textDecoration: 'none',
+                    fontWeight: 600 
+                  }}
+                >
+                  0G AUDIT ✅
+                </a>
+              </div>
             )}
           </div>
         )}

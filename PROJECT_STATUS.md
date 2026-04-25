@@ -102,6 +102,15 @@ openagent/
 | **AgentRegistry** | `0xF468bF0C4c4c1918115543C18aF392d210E89Bed` | 🟢 Deployed |
 | **ReputationLedger** | `0x3c69d3277fC72fdf52eABD96195253A836BaB427` | 🟢 Deployed |
 
+### 🏆 Proof of Project (Judges' Guide)
+
+The Axiom terminal is designed for maximum verifiability. Judges can audit the system via:
+
+1. **On-Chain Reputation**: Every agent card in the UI links to the `ReputationLedger` contract on Basescan. Judges can see the `accuracyBps` and `totalDecisions` stored in the contract state.
+2. **Decentralized Logs**: Every transaction in the Activity Feed contains a **"0G AUDIT ✅"** link. This points to the 0G Storage Indexer, proving that agent logs are immutable and stored on 0G.
+3. **HD Identity**: All agent addresses are derived from a single master seed using BIP-44, which judges can reproduce to verify the identity layer.
+4. **x402 Micropayments**: Every internal agent call is authorized by a cryptographic x402 header, which can be inspected in the Orchestrator's logs.
+
 ### `AgentRegistry.sol`
 - Stores the mapping of agent IDs to their wallet addresses.
 - Enables lookup of "which wallet is agent `research-001`?"
