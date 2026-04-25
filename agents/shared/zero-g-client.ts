@@ -6,7 +6,7 @@ import { ethers } from "ethers";
 
 // ─── 0G KV Store — real-time agent state ─────────────────────────────────────
 
-const AXIOM_STREAM_ID = process.env.OG_STREAM_ID!; // MISSING_VALUE if not set
+const AXIOM_STREAM_ID = ethers.keccak256(ethers.toUtf8Bytes(process.env.OG_STREAM_ID!));
 
 export async function write0GKV(params: {
   key: string;
@@ -26,7 +26,7 @@ export async function write0GKV(params: {
     params.signer
   );
 
-  const batcher = new Batcher(1, nodes, flowContract, process.env.OG_EVM_RPC!);
+  const batcher = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
   const keyBytes = Uint8Array.from(Buffer.from(params.key, "utf-8"));
   const valueBytes = Uint8Array.from(
     Buffer.from(JSON.stringify(params.value), "utf-8")
@@ -75,7 +75,7 @@ export async function write0GLog(params: {
 
   // Use the Blob upload path for log entries (append-only, verifiable)
   const { Blob: ZgBlob } = await import("@0gfoundation/0g-ts-sdk");
-  const blob = new ZgBlob(Buffer.from(logEntry, "utf-8"));
+  const blob = new ZgBlob(Buffer.from(logEntry, "utf-8") as any);
   const [merkleTree, treeErr] = await (blob as any).merkleTree();
   if (treeErr) throw new Error(`0G merkle tree failed: ${treeErr}`);
 

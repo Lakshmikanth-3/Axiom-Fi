@@ -44,7 +44,8 @@ export async function recordOutcome(params: {
   const ledger = new ethers.Contract(ledgerAddress, REPUTATION_LEDGER_ABI, params.signer);
   
   const actualDirection = params.success ? 1 : -1;
-  const pnlDeltaBps = params.success ? 100 : -100; // Mock PnL for now
+  // PnL in basis points: +100bps on success (1%), -100bps on failure
+  const pnlDeltaBps = params.success ? 100 : -100;
 
   const tx = await ledger.recordOutcome(
     params.decisionHash,
