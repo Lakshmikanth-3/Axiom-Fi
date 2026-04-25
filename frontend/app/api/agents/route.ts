@@ -9,11 +9,12 @@ const REPUTATION_LEDGER_ABI = [
 const TIERS: any[] = ['unranked', 'bronze', 'silver', 'gold', 'axiom']
 
 export async function GET() {
+  console.log("[API/Agents] GET request received");
   const rpcUrl = process.env.RPC_URL
   const ledgerAddress = process.env.REPUTATION_LEDGER_ADDRESS
 
   if (!rpcUrl || !ledgerAddress || ledgerAddress === 'MISSING_VALUE') {
-    return NextResponse.json({ error: 'Config not set' }, { status: 500 })
+    return NextResponse.json({ error: 'Blockchain configuration missing in .env' }, { status: 500 })
   }
 
   try {
@@ -30,9 +31,9 @@ export async function GET() {
         id,
         name: id === 'research-001' ? 'Research-001' : id === 'risk-guard-001' ? 'RiskGuard-001' : 'Executor-001',
         type: id.includes('research') ? 'research' : id.includes('risk') ? 'risk-guard' : 'executor',
-        tier: TIERS[Number(rep.tier)],
-        accuracy: Number(rep.accuracyBps) / 100,
-        totalDecisions: Number(rep.totalDecisions),
+        tier: TIERS[Number(rep[3])],
+        accuracy: Number(rep[2]) / 100,
+        totalDecisions: Number(rep[0]),
         fee: `$${(Number(feeCoeff) / 1000).toFixed(3)}`, // base fee $0.001 * coeff/100
         status: 'idle'
       }
@@ -40,6 +41,7 @@ export async function GET() {
 
     return NextResponse.json(agents)
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error(`[API/Agents] Real Call Failed:`, err)
+    return NextResponse.json({ error: `On-chain data fetch failed: ${err.message}` }, { status: 500 })
   }
 }
