@@ -6,9 +6,10 @@ import { Hexagon, ExternalLink } from 'lucide-react'
 export default function Nav() {
   const path = usePathname()
   const links = [
-    { href: '/terminal', label: 'Terminal' },
-    { href: '/agents',   label: 'Agents' },
-    { href: '/portfolio', label: 'Portfolio' },
+    { href: '/terminal',    label: 'Terminal' },
+    { href: '/agents',      label: 'Agents' },
+    { href: '/marketplace', label: '🏪 Marketplace' },
+    { href: '/portfolio',   label: 'Portfolio' },
   ]
 
   return (

@@ -1,23 +1,14 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
-import AgentStatusCard, { type AgentInfo } from '@/components/AgentStatusCard'
+import { useState, useRef } from 'react'
 import ActivityFeed, { type FeedEntry } from '@/components/ActivityFeed'
 import { Send, RotateCcw } from 'lucide-react'
-
-/* ── Demo seed data ──────────────────────────────────────────────── */
-const INIT_AGENTS: AgentInfo[] = [
-  { id: 'research-001', name: 'Research-001', type: 'research', tier: 'gold', accuracy: 71, totalDecisions: 43, fee: '$0.008', status: 'idle' },
-  { id: 'risk-001',     name: 'RiskGuard-001', type: 'risk-guard', tier: 'silver', accuracy: 58, totalDecisions: 31, fee: '$0.005', status: 'idle' },
-  { id: 'executor-001', name: 'Executor-001',  type: 'executor',   tier: 'gold',   accuracy: 68, totalDecisions: 29, fee: '$0.008', status: 'idle' },
-]
 
 function ts() {
   return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
-
 function uid() { return Math.random().toString(36).slice(2, 10) }
 
-/* ── Strategy Editor with line numbers ───────────────────────────── */
+/* ── Strategy Editor ──────────────────────────────────────────────── */
 function StrategyEditor({
   value, onChange, onSubmit, running,
 }: {
@@ -27,7 +18,6 @@ function StrategyEditor({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Editor area */}
       <div style={{
         flex: 1, display: 'flex', overflow: 'hidden',
         background: 'var(--bg-elevated)',
@@ -52,7 +42,6 @@ function StrategyEditor({
           ))}
         </div>
 
-        {/* Textarea */}
         <textarea
           id="strategy-editor"
           value={value}
@@ -75,12 +64,10 @@ function StrategyEditor({
         />
       </div>
 
-      {/* Char count */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
         <span className="label-caps">{value.length} chars</span>
       </div>
 
-      {/* Submit button */}
       <button
         id="submit-strategy-btn"
         onClick={onSubmit}
@@ -98,7 +85,7 @@ function StrategyEditor({
             Agents Working…
           </>
         ) : (
-          <><Send size={14} /> Submit Strategy</>
+          <><Send size={14} /> Execute Strategy</>
         )}
       </button>
     </div>
@@ -107,61 +94,17 @@ function StrategyEditor({
 
 /* ── Main Terminal Page ───────────────────────────────────────────── */
 export default function TerminalPage() {
-  const [strategy, setStrategy]     = useState('')
-  const [running, setRunning]       = useState(false)
-  const [feed, setFeed]             = useState<FeedEntry[]>([])
-  const [agents, setAgents]         = useState<AgentInfo[]>(INIT_AGENTS)
-  const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([])
+  const [strategy, setStrategy] = useState('')
+  const [running, setRunning]   = useState(false)
+  const [feed, setFeed]         = useState<FeedEntry[]>([])
+  const abortRef = useRef<AbortController | null>(null)
 
   function addEntry(entry: Omit<FeedEntry, 'id' | 'timestamp'>) {
     setFeed(prev => [...prev, { ...entry, id: uid(), timestamp: ts() }])
   }
 
-  useEffect(() => {
-    async function fetchAgents() {
-      try {
-        const res = await fetch('/api/agents')
-        if (res.ok) {
-          const data = await res.json()
-          setAgents(data)
-        }
-      } catch (e) { console.error('Failed to fetch agents', e) }
-    }
-    fetchAgents()
-    const interval = setInterval(fetchAgents, 10000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    let lastLogCount = 0
-    async function fetchLogs() {
-      try {
-        const res = await fetch('/api/logs')
-        if (res.ok) {
-          const logs = await res.json()
-          if (logs.length > lastLogCount) {
-            // Add new logs to feed
-            const newLogs = logs.slice(0, logs.length - lastLogCount).reverse()
-            newLogs.forEach((log: any) => {
-              addEntry({
-                type: log.event === 'recommendation_generated' ? 'research' : log.event === 'swap_executed' ? 'executor' : 'orchestrator',
-                agentName: log.agentId || 'Axiom',
-                tier: 'gold', // Map correctly in production
-                action: log.data?.recommendation || log.data?.action || log.event,
-                txHash: log.txHash
-              })
-            })
-            lastLogCount = logs.length
-          }
-        }
-      } catch (e) { console.error('Failed to fetch logs', e) }
-    }
-    
-    const interval = setInterval(fetchLogs, 3000)
-    return () => clearInterval(interval)
-  }, [])
-
   function reset() {
+    abortRef.current?.abort()
     setRunning(false)
     setFeed([])
     setStrategy('')
@@ -170,21 +113,78 @@ export default function TerminalPage() {
   async function handleSubmit() {
     if (running) return
     setRunning(true)
-    addEntry({ type: 'orchestrator', agentName: 'Orchestrator', tier: 'gold', action: 'Initiating real-world strategy execution…' })
-    
+    setFeed([])
+    addEntry({ type: 'orchestrator', agentName: 'Orchestrator', tier: 'gold', action: '⚙ Initialising agent pipeline…' })
+
+    abortRef.current = new AbortController()
+
     try {
-      const res = await fetch('/api/execute', {
+      const res = await fetch('/api/stream', {
         method: 'POST',
         body: JSON.stringify({ strategy }),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        signal: abortRef.current.signal,
       })
-      if (!res.ok) throw new Error('Execution failed')
-      addEntry({ type: 'orchestrator', agentName: 'Orchestrator', tier: 'gold', action: 'Strategy submitted to agent cloud. Polling 0G Storage for live audit trail…' })
-      
-      // Real polling logic would go here
-      // For now, we'll keep the feed open
+
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+
+        for (const part of parts) {
+          const line = part.replace(/^data:\s*/, '').trim()
+          if (!line) continue
+
+          try {
+            const event = JSON.parse(line)
+
+            if (event.type === 'log') {
+              addEntry({
+                type: event.tag as any,
+                agentName:
+                  event.tag === 'research'    ? 'Research-001'   :
+                  event.tag === 'risk-guard'  ? 'RiskGuard-001'  :
+                  event.tag === 'executor'    ? 'Executor-001'   :
+                  event.tag === 'payment'     ? 'x402 Payment'   :
+                  event.tag === 'attestation' ? 'Attestation'    :
+                  'Orchestrator',
+                tier: 'gold',
+                action: event.message,
+                txHash: event.txHash,
+              })
+            } else if (event.type === 'error') {
+              addEntry({ type: 'orchestrator', agentName: 'System', tier: 'gold', action: `⚠ ${event.message}` })
+            } else if (event.type === 'done') {
+              addEntry({
+                type: event.success ? 'attestation' : 'orchestrator',
+                agentName: 'Orchestrator',
+                tier: 'gold',
+                action: event.message,
+              })
+              setRunning(false)
+            } else if (event.type === 'status') {
+              addEntry({ type: 'orchestrator', agentName: 'Orchestrator', tier: 'gold', action: event.message })
+            }
+          } catch {
+            // malformed SSE line — skip
+          }
+        }
+      }
     } catch (e: any) {
-      addEntry({ type: 'orchestrator', agentName: 'Orchestrator', tier: 'gold', action: `ERROR: ${e.message}` })
+      if (e.name !== 'AbortError') {
+        addEntry({ type: 'orchestrator', agentName: 'System', tier: 'gold', action: `ERROR: ${e.message}` })
+      }
       setRunning(false)
     }
   }
@@ -195,7 +195,7 @@ export default function TerminalPage() {
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',
     }}>
-      {/* Terminal header bar */}
+      {/* Terminal header */}
       <div style={{
         background: 'var(--bg-elevated)',
         borderBottom: '1px solid var(--border)',
@@ -211,6 +211,14 @@ export default function TerminalPage() {
           <span style={{ fontFamily: "'Space Mono'", fontSize: '0.7rem', color: 'var(--text-muted)' }}>
             Base Sepolia · Chain ID 84532
           </span>
+          <span style={{ width: 1, height: 16, background: 'var(--border)' }} />
+          <a
+            href="https://sepolia.basescan.org/address/0x3c69d3277fC72fdf52eABD96195253A836BaB427"
+            target="_blank" rel="noreferrer"
+            style={{ fontFamily: "'Space Mono'", fontSize: '0.65rem', color: 'var(--amber)', textDecoration: 'none' }}
+          >
+            ReputationLedger ↗
+          </a>
         </div>
         <button
           onClick={reset}
@@ -221,13 +229,13 @@ export default function TerminalPage() {
         </button>
       </div>
 
-      {/* Three-panel layout */}
+      {/* 2-panel layout */}
       <div style={{
         flex: 1, display: 'grid',
-        gridTemplateColumns: '35% 35% 30%',
+        gridTemplateColumns: '40% 60%',
         overflow: 'hidden',
       }}>
-        {/* ── Panel 1: Strategy Editor ──────────────────────────── */}
+        {/* Panel 1: Strategy Editor */}
         <div style={{
           borderRight: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column',
@@ -243,9 +251,8 @@ export default function TerminalPage() {
           <StrategyEditor value={strategy} onChange={setStrategy} onSubmit={handleSubmit} running={running} />
         </div>
 
-        {/* ── Panel 2: Activity Feed ────────────────────────────── */}
+        {/* Panel 2: Live Activity Feed */}
         <div style={{
-          borderRight: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}>
           <div style={{
@@ -253,27 +260,21 @@ export default function TerminalPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
           }}>
             <span className="label-caps">Live Activity Feed</span>
-            <span style={{
-              width: 7, height: 7, borderRadius: '50%',
-              background: running ? 'var(--green)' : 'var(--border)',
-              boxShadow: running ? '0 0 6px var(--green)' : 'none',
-              transition: 'all 0.3s',
-            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {running && (
+                <span style={{ fontFamily: "'Space Mono'", fontSize: '0.65rem', color: 'var(--green)', animation: 'pulse 1.5s ease-in-out infinite' }}>
+                  streaming
+                </span>
+              )}
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: running ? 'var(--green)' : 'var(--border)',
+                boxShadow: running ? '0 0 6px var(--green)' : 'none',
+                transition: 'all 0.3s',
+              }} />
+            </div>
           </div>
           <ActivityFeed entries={feed} />
-        </div>
-
-        {/* ── Panel 3: Agent Status ─────────────────────────────── */}
-        <div style={{
-          display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px',
-          gap: 12,
-        }}>
-          <span className="label-caps" style={{ flexShrink: 0 }}>Agent Status</span>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {agents.map(agent => (
-              <AgentStatusCard key={agent.id} agent={agent} />
-            ))}
-          </div>
         </div>
       </div>
     </div>
