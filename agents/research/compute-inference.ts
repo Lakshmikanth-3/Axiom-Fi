@@ -1,56 +1,64 @@
 // File: agents/research/compute-inference.ts
 // Uses 0G Compute Network for verifiable LLM inference
+// Documentation: https://github.com/0gfoundation/0g-serving-broker
 
-import { ZGServingUserBrokerBase } from "@0gfoundation/0g-ts-sdk";
+import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 import { ethers } from "ethers";
 
 export async function runDecentralizedInference(params: {
   prompt: string;
   signer: ethers.Signer;
 }): Promise<{ response: string; providerAddress: string; model: string }> {
-  if (!process.env.OG_EVM_RPC) throw new Error("MISSING_VALUE: OG_EVM_RPC");
+  // 1. Initialize the broker
+  const broker = await createZGComputeNetworkBroker(params.signer as any);
 
-  // List available inference providers
-  const broker = await ZGServingUserBrokerBase.createZGServingUserBroker(
-    params.signer,
-    { endpoint: process.env.OG_EVM_RPC }
-  );
+  // 2. List available inference services
+  const services = await broker.inference.listService();
+  const chatServices = services.filter(s => s.serviceType === "chatbot");
 
-  // Get list of providers — pick one with best price/availability
-  const providers = await (broker as any).listServices();
-  const chatProviders = providers.filter(
-    (p: any) => p.serviceType === "chatbot" && p.active
-  );
-
-  if (chatProviders.length === 0) {
-    throw new Error("No 0G Compute providers available — check OG_EVM_RPC");
+  if (chatServices.length === 0) {
+    throw new Error("No 0G Compute providers available");
   }
 
-  // Select cheapest provider (input tokens)
-  const provider = chatProviders.sort(
-    (a: any, b: any) =>
-      Number(a.inputPrice) - Number(b.inputPrice)
-  )[0];
+  // 3. Select the first available provider
+  const service = chatServices[0];
+  const providerAddress = service.provider;
 
-  // Create account with provider and deposit compute credits
-  await (broker as any).addOrUpdateService(
-    provider.provider,
-    provider.name,
-    { maxInputTokens: 4096, maxOutputTokens: 1024 }
-  );
+  // 4. Get metadata (endpoint and model name)
+  const { endpoint, model } = await broker.inference.getServiceMetadata(providerAddress);
 
-  // Execute inference request
-  const result = await (broker as any).requestService(
-    provider.provider,
-    provider.name,
-    {
+  // 5. Get billing headers for the request
+  // This automatically handles account creation/top-up if funds are available in the ledger
+  const headers = await broker.inference.getRequestHeaders(providerAddress, params.prompt);
+
+  // 6. Execute request using standard fetch (OpenAI compatible)
+  const response = await fetch(`${endpoint}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(headers as any),
+    },
+    body: JSON.stringify({
+      model: model,
       messages: [{ role: "user", content: params.prompt }],
-    }
-  );
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`0G Inference Request Failed: ${response.statusText} - ${errorBody}`);
+  }
+
+  const result = await response.json();
+  const content = result.choices[0].message.content;
+
+  // 7. Process response (caches fees and verifies signature if the service is verifiable)
+  const chatID = response.headers.get("ZG-Res-Key") || result.id;
+  await broker.inference.processResponse(providerAddress, chatID, JSON.stringify(result.usage));
 
   return {
-    response: result.choices[0].message.content,
-    providerAddress: provider.provider,
-    model: provider.model,
+    response: content,
+    providerAddress,
+    model,
   };
 }
