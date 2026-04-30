@@ -1,4 +1,10 @@
 import { ethers } from "ethers";
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+if (!process.env.AGENT_MASTER_SEED) {
+  dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+}
 
 const MASTER_SEED = process.env.AGENT_MASTER_SEED;
 

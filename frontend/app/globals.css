@@ -30,11 +30,11 @@
   --red:   #ef4444;
   --amber: #f59e0b;
 
-  /* Reputation tiers */
-  --rep-bronze: #cd7f32;
-  --rep-silver: #94a3b8;
-  --rep-gold:   #f59e0b;
-  --rep-axiom:  #60a5fa;
+  /* Pipeline step states */
+  --step-pending: #1a2440;
+  --step-running: #2563eb;
+  --step-done:    #22c55e;
+  --step-failed:  #ef4444;
 }
 
 *, *::before, *::after {
@@ -43,9 +43,7 @@
   padding: 0;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
   background: var(--bg-base);
@@ -57,42 +55,25 @@ body {
   overflow-x: hidden;
 }
 
-/* ── Scrollbar ─────────────────────────────────────────────────────── */
+/* ── Scrollbar ────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg-surface); }
 ::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--blue-primary); }
 
-/* ── Typography helpers ─────────────────────────────────────────────── */
-.mono { font-family: 'Space Mono', monospace; }
-.text-primary   { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
-.text-muted     { color: var(--text-muted); }
-.text-mono-val  { color: var(--text-mono); }
-
-/* ── Keyframes ─────────────────────────────────────────────────────── */
+/* ── Keyframes ────────────────────────────────────────────────────── */
 @keyframes meshShift {
   0%   { background-position: 20% 40%, 80% 60%, center; }
   100% { background-position: 35% 55%, 65% 45%, center; }
 }
 
 @keyframes feedIn {
-  from { opacity: 0; transform: translateX(-8px); }
+  from { opacity: 0; transform: translateX(6px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes activePulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3), 0 0 12px rgba(37, 99, 235, 0.1); }
-  50%       { box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.7), 0 0 24px rgba(96, 165, 250, 0.25); }
-}
-
-@keyframes axiomGlow {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.4), 0 0 20px rgba(96, 165, 250, 0.15); }
-  50%       { box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.8), 0 0 35px rgba(96, 165, 250, 0.3); }
-}
-
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -106,28 +87,56 @@ body {
   50%       { opacity: 0; }
 }
 
-@keyframes paymentFlash {
-  0%   { color: var(--text-mono); }
-  30%  { color: var(--green); }
-  100% { color: var(--text-mono); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
 }
 
-/* ── Utility classes ────────────────────────────────────────────────── */
-.animate-feed-in    { animation: feedIn 0.3s ease-out forwards; }
-.animate-fade-up    { animation: fadeUp 0.5s ease-out forwards; }
-.animate-pulse-border { animation: activePulse 2s ease-in-out infinite; }
-.animate-axiom-glow   { animation: axiomGlow 3s ease-in-out infinite; }
-.animate-cursor     { animation: blink 1s step-end infinite; }
+@keyframes axiomGlow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(96,165,250,0.3), 0 0 16px rgba(96,165,250,0.1); }
+  50%       { box-shadow: 0 0 0 1px rgba(96,165,250,0.7), 0 0 30px rgba(96,165,250,0.25); }
+}
 
-/* ── Glass panel ────────────────────────────────────────────────────── */
+/* Pipeline connector dash animation */
+@keyframes dashFlow {
+  from { stroke-dashoffset: 24; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Node active ring pulse */
+@keyframes nodePulse {
+  0%, 100% { box-shadow: 0 0 0 0px rgba(37,99,235,0.6); }
+  50%       { box-shadow: 0 0 0 6px rgba(37,99,235,0); }
+}
+
+/* Step row highlight sweep */
+@keyframes stepRunning {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes paymentFlash {
+  0%   { color: var(--text-muted); }
+  40%  { color: var(--green); }
+  100% { color: var(--text-secondary); }
+}
+
+/* ── Utility ──────────────────────────────────────────────────────── */
+.animate-feed-in    { animation: feedIn 0.25s ease-out forwards; }
+.animate-fade-up    { animation: fadeUp 0.4s ease-out forwards; }
+.animate-dash-flow  { animation: dashFlow 0.6s linear infinite; }
+.animate-node-pulse { animation: nodePulse 1.5s ease-in-out infinite; }
+.animate-payment    { animation: paymentFlash 1.2s ease-out forwards; }
+
+/* ── Glass ────────────────────────────────────────────────────────── */
 .glass {
-  background: rgba(8, 13, 26, 0.75);
+  background: rgba(8,13,26,0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(30, 58, 110, 0.5);
+  border: 1px solid rgba(30,58,110,0.5);
 }
 
-/* ── Card surface ───────────────────────────────────────────────────── */
+/* ── Card surfaces ────────────────────────────────────────────────── */
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -140,7 +149,7 @@ body {
   border-radius: 8px;
 }
 
-/* ── Button primitives ──────────────────────────────────────────────── */
+/* ── Buttons ──────────────────────────────────────────────────────── */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -158,18 +167,18 @@ body {
 }
 .btn-primary:hover {
   background: var(--blue-bright);
-  box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 0 20px rgba(37,99,235,0.4);
 }
 
 .btn-ghost {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 24px;
+  padding: 10px 20px;
   background: transparent;
   color: var(--text-secondary);
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 500;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -181,13 +190,13 @@ body {
   color: var(--text-primary);
 }
 
-/* ── Divider ────────────────────────────────────────────────────────── */
+/* ── Divider ──────────────────────────────────────────────────────── */
 .divider {
   height: 1px;
-  background: rgba(30, 58, 110, 0.6);
+  background: rgba(30,58,110,0.6);
 }
 
-/* ── Label caps ─────────────────────────────────────────────────────── */
+/* ── Label caps ───────────────────────────────────────────────────── */
 .label-caps {
   font-size: 0.6875rem;
   font-weight: 500;
@@ -196,7 +205,7 @@ body {
   color: var(--text-muted);
 }
 
-/* ── Tx hash link ───────────────────────────────────────────────────── */
+/* ── Tx hash links ────────────────────────────────────────────────── */
 .tx-link {
   font-family: 'Space Mono', monospace;
   font-size: 0.75rem;
@@ -206,15 +215,62 @@ body {
 }
 .tx-link:hover {
   color: var(--blue-glow);
-  text-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+  text-shadow: 0 0 8px rgba(96,165,250,0.5);
 }
 
-/* ── Status dot ─────────────────────────────────────────────────────── */
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+/* ── Pipeline step rows ───────────────────────────────────────────── */
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  transition: border-color 0.3s ease, background 0.3s ease;
 }
-.status-dot.idle    { background: var(--text-muted); }
-.status-dot.working { background: var(--green); box-shadow: 0 0 6px var(--green); animation: activePulse 1.5s ease-in-out infinite; }
-.status-dot.waiting { background: var(--amber); }
+
+.step-row.pending  { border-color: var(--border); }
+.step-row.running  { border-color: rgba(37,99,235,0.6); background: rgba(37,99,235,0.05); }
+.step-row.done     { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.04); }
+.step-row.failed   { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.04); }
+
+/* ── Phase separator ──────────────────────────────────────────────── */
+.phase-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(5,8,16,0.6);
+}
+
+/* ── Analysis metric value ────────────────────────────────────────── */
+.metric-value {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.875rem;
+  color: var(--text-mono);
+  font-weight: 700;
+}
+
+.metric-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+/* ── Status dot ───────────────────────────────────────────────────── */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.pending { background: var(--text-muted); }
+.status-dot.running { background: var(--blue-glow); animation: nodePulse 1.2s ease-in-out infinite; box-shadow: 0 0 8px var(--blue-glow); }
+.status-dot.done    { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+.status-dot.failed  { background: var(--red); box-shadow: 0 0 6px rgba(239,68,68,0.5); }

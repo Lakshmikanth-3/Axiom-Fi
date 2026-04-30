@@ -27,15 +27,17 @@ export async function buildAndExecuteSwap(params: {
   });
 
   // If approval tx required, send it
-  if (approvalCheck.approval !== null) {
+  if (approvalCheck.approval !== null && approvalCheck.approval.spender) {
     if (!approvalCheck.permit2) {
       // Classic ERC-20 approve
+      const spender = approvalCheck.approval.spender;
+      const amount = BigInt(approvalCheck.approval.amount || "0").toString(16).padStart(64, "0");
       const approveTx = await wallet.sendTransaction({
         to: params.tokenIn,
         data:
           "0x095ea7b3" + // approve(address,uint256)
-          approvalCheck.approval.spender.slice(2).padStart(64, "0") +
-          BigInt(approvalCheck.approval.amount).toString(16).padStart(64, "0"),
+          spender.slice(2).padStart(64, "0") +
+          amount,
       });
       await approveTx.wait();
     }
@@ -90,7 +92,7 @@ export async function buildAndExecuteSwap(params: {
     simulate: true,
   });
 
-  if (!swapTx.swap) {
+  if (!swapTx?.swap) {
     throw new Error("Uniswap swap calldata null — cannot execute");
   }
 

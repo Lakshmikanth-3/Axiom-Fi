@@ -1,6 +1,8 @@
 import dotenv from "dotenv";
 import path from "path";
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+if (!process.env.RPC_URL) {
+  dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+}
 
 import { selectBestAgent } from "./selector";
 import { runResearch } from "../research/index";
@@ -18,13 +20,17 @@ const AGENT_FEES: Record<string, bigint> = {
   executor:   BigInt(10_000), // $0.010 USDC
 };
 
-export async function main(strategy: string) {
+export async function main(strategy: string, onLog?: (msg: string) => void) {
+  const log = (msg: string) => {
+    console.log(msg);
+    if (onLog) onLog(msg);
+  };
   const sessionId = `session-${Date.now()}`;
   const provider = new JsonRpcProvider(process.env.RPC_URL!);
   const orchestratorWallet = deriveWallet(process.env.AGENT_MASTER_SEED!, "orchestrator-001").connect(provider);
 
-  console.log(`[Orchestrator] Starting session ${sessionId}`);
-  console.log(`[Orchestrator] Strategy: ${strategy}`);
+  log(`[Orchestrator] Starting session ${sessionId}`);
+  log(`[Orchestrator] Strategy: ${strategy}`);
 
   // 1. Persist initial state to 0G KV
   await write0GKV({
@@ -38,33 +44,33 @@ export async function main(strategy: string) {
   const riskAgentId     = await selectBestAgent({ role: "risk-guard", provider });
   const executorAgentId = await selectBestAgent({ role: "executor", provider });
 
-  console.log(`[Orchestrator] Selected agents: Research(${researchAgentId}), Risk(${riskAgentId}), Executor(${executorAgentId})`);
+  log(`[Orchestrator] Selected agents: Research(${researchAgentId}), Risk(${riskAgentId}), Executor(${executorAgentId})`);
 
   // 3. Create x402 client for all inter-agent micropayments
   const x402 = await getX402Client(orchestratorWallet, process.env.X402_FACILITATOR_URL!);
 
   // ── Step A: Pay Research Agent → Run Research ──────────────────────────────
-  console.log(`[Orchestrator] Paying ${researchAgentId} via x402 ($0.005)...`);
+  log(`[Orchestrator] Paying ${researchAgentId} via x402 ($0.005)...`);
   const researchPayment = await x402.pay({
     to:        process.env.RESEARCH_WALLET!,
     amount:    AGENT_FEES["research"],
     currency:  "USDC",
     reference: `${sessionId}:research`,
   });
-  console.log(`[Orchestrator] x402 payment header created: ${JSON.stringify(researchPayment.header).substring(0, 80)}...`);
+  log(`[Orchestrator] x402 payment header created: ${JSON.stringify(researchPayment.header).substring(0, 80)}...`);
 
   const researchResult = await runResearch({ strategy, sessionId });
-  console.log(`[Research] Recommendation: ${researchResult.recommendation.substring(0, 100)}...`);
+  log(`[Research] Recommendation: ${researchResult.recommendation.substring(0, 100)}...`);
 
   // ── Step B: Pay Risk Guard → Run Risk Check ────────────────────────────────
-  console.log(`[Orchestrator] Paying ${riskAgentId} via x402 ($0.003)...`);
+  log(`[Orchestrator] Paying ${riskAgentId} via x402 ($0.003)...`);
   const riskPayment = await x402.pay({
     to:        process.env.RISK_WALLET!,
     amount:    AGENT_FEES["risk-guard"],
     currency:  "USDC",
     reference: `${sessionId}:risk-guard`,
   });
-  console.log(`[Orchestrator] x402 payment header created: ${JSON.stringify(riskPayment.header).substring(0, 80)}...`);
+  log(`[Orchestrator] x402 payment header created: ${JSON.stringify(riskPayment.header).substring(0, 80)}...`);
 
   const riskResult = await runRiskCheck({
     sessionId,
@@ -72,7 +78,7 @@ export async function main(strategy: string) {
   });
 
   if (!riskResult.approved) {
-    console.log(`[Orchestrator] Trade REJECTED by Risk Guard. Flags: ${riskResult.flags.join(", ")}`);
+    log(`[Orchestrator] Trade REJECTED by Risk Guard. Flags: ${riskResult.flags.join(", ")}`);
     await write0GKV({
       key: `orchestrator:state:${sessionId}`,
       value: { strategy, status: "REJECTED", flags: riskResult.flags, ts: Date.now() },
@@ -82,14 +88,14 @@ export async function main(strategy: string) {
   }
 
   // ── Step C: Pay Executor → Execute Trade ──────────────────────────────────
-  console.log(`[Orchestrator] Paying ${executorAgentId} via x402 ($0.010)...`);
+  log(`[Orchestrator] Paying ${executorAgentId} via x402 ($0.010)...`);
   const execPayment = await x402.pay({
     to:        process.env.EXECUTOR_WALLET!,
     amount:    AGENT_FEES["executor"],
     currency:  "USDC",
     reference: `${sessionId}:executor`,
   });
-  console.log(`[Orchestrator] x402 payment header created: ${JSON.stringify(execPayment.header).substring(0, 80)}...`);
+  log(`[Orchestrator] x402 payment header created: ${JSON.stringify(execPayment.header).substring(0, 80)}...`);
 
   const tradeResult = await executeTradeViaKeeperHub({
     tokenIn:  "0x4200000000000000000000000000000000000006", // WETH on Base
@@ -105,7 +111,7 @@ export async function main(strategy: string) {
     signer: orchestratorWallet,
   });
 
-  console.log(`[Orchestrator] ✅ Session ${sessionId} complete. Tx: ${tradeResult.txHash}`);
+  log(`[Orchestrator] ✅ Session ${sessionId} complete. Tx: ${tradeResult.txHash}`);
 }
 
 if (require.main === module) {

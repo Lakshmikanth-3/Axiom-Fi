@@ -8,3 +8,6 @@
 6. ✅ REAL identity (Derive wallets from seed for every agent).
 7. ✅ PREMIUM UI (Cyber Terminal, Glassmorphism, Space Mono).
 8. ✅ VERIFIABLE outcomes (Attestations for every decision).
+
+
+if any mock , simulator, fallback , hardcoded etc  remove it i want the real implementation .

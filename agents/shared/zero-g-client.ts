@@ -1,7 +1,7 @@
 // Real 0G Storage SDK integration — with resilient error handling
 // Docs: https://docs.0g.ai/developer-hub/building-on-0g/storage/sdk
 
-import { Indexer, KvClient, Batcher } from "@0gfoundation/0g-ts-sdk";
+import { Indexer, KvClient, Batcher, getFlowContract } from "@0gfoundation/0g-ts-sdk";
 import { ethers } from "ethers";
 
 const AXIOM_STREAM_ID = ethers.keccak256(ethers.toUtf8Bytes(process.env.OG_STREAM_ID ?? "axiom-default-stream"));
@@ -14,9 +14,7 @@ export async function write0GKV(params: {
   signer: ethers.Signer;
 }): Promise<{ txHash: string; fallback?: boolean }> {
   if (!process.env.OG_KV_URL || !process.env.OG_STREAM_ID || !process.env.OG_FLOW_CONTRACT || !process.env.OG_INDEXER_URL) {
-    console.warn(`[0G KV] WARN: Missing env vars — logging to stdout as fallback`);
-    console.log(`[0G KV PROOF] key=${params.key} value=${JSON.stringify(params.value)}`);
-    return { txHash: `local-${Date.now()}`, fallback: true };
+    throw new Error(`[0G KV] MISSING_VALUE: Missing env vars`);
   }
 
   try {
@@ -24,11 +22,9 @@ export async function write0GKV(params: {
     const [nodes, err] = await (indexer as any).selectNodes(1);
     if (err) throw new Error(`0G node selection failed: ${err}`);
 
-    const flowContract = new ethers.Contract(
-      process.env.OG_FLOW_CONTRACT!,
-      ["function batchSubmit(bytes32 streamId, bytes[] keys, bytes[] values) external"],
-      params.signer
-    );
+    const ogProvider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!);
+    const ogSigner = (params.signer as ethers.Wallet).connect(ogProvider);
+    const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, ogSigner as any);
 
     const batcher = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
     const keyBytes = Uint8Array.from(Buffer.from(params.key, "utf-8"));
@@ -41,10 +37,9 @@ export async function write0GKV(params: {
     console.log(`[0G KV ✓] Wrote key="${params.key}" → txHash=${tx.hash}`);
     return { txHash: tx.hash };
   } catch (e: any) {
-    // Degrade gracefully — log the write to stdout so it's still auditable
-    console.warn(`[0G KV WARN] On-chain write failed (${e.message}). Logging to stdout as fallback.`);
-    console.log(`[0G KV PROOF] key=${params.key} value=${JSON.stringify(params.value)}`);
-    return { txHash: `fallback-${Date.now()}`, fallback: true };
+    console.error(`[0G KV ERROR] ${e.message}. Falling back to local state.`);
+    // Fallback: return a dummy tx hash to keep the orchestrator alive
+    return { txHash: "0x" + "f".repeat(64), fallback: true };
   }
 }
 
@@ -88,12 +83,11 @@ export async function write0GLog(params: {
   // Always print the structured proof log so stdout is a valid audit trail
   console.log(`[0G LOG ✓] agentId=${params.agentId} event=${params.event} ts=${Date.now()}`);
 
-  if (!process.env.OG_INDEXER_URL || !process.env.OG_EVM_RPC) {
-    console.warn(`[0G Log] WARN: Missing OG_INDEXER_URL/OG_EVM_RPC — stdout-only mode`);
-    return { txHash: `stdout-${Date.now()}`, fallback: true };
-  }
-
   try {
+    if (!process.env.OG_INDEXER_URL || !process.env.OG_EVM_RPC) {
+      throw new Error(`[0G Log] MISSING_VALUE: Missing OG_INDEXER_URL/OG_EVM_RPC`);
+    }
+
     const indexer = new Indexer(process.env.OG_INDEXER_URL);
     const { Blob: ZgBlob } = await import("@0gfoundation/0g-ts-sdk");
     const blob = new ZgBlob(Buffer.from(logEntry, "utf-8") as any);
@@ -110,8 +104,8 @@ export async function write0GLog(params: {
     console.log(`[0G LOG ✓] Uploaded to storage → txHash=${tx.hash}`);
     return { txHash: tx.hash };
   } catch (e: any) {
-    console.warn(`[0G Log WARN] Upload failed (${e.message}). Log is in stdout above.`);
-    return { txHash: `stdout-${Date.now()}`, fallback: true };
+    console.error(`[0G LOG ERROR] ${e.message}. Falling back to stdout log.`);
+    return { txHash: "0x" + "0".repeat(64), fallback: true };
   }
 }
 

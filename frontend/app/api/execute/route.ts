@@ -1,28 +1,31 @@
-import { NextResponse } from 'next/server'
-import { spawn } from 'child_process'
-import path from 'path'
+import { NextRequest, NextResponse } from 'next/server'
+import { main as runOrchestrator } from '@/agents/orchestrator/index'
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const { strategy } = await req.json()
-  
-  if (!strategy) {
-    return NextResponse.json({ error: 'Strategy required' }, { status: 400 })
+
+  if (!strategy || strategy.trim().length < 5) {
+    return NextResponse.json({ error: 'Strategy too short' }, { status: 400 })
   }
 
-  // Spawn the orchestrator process
-  const agentDir = path.resolve(process.cwd(), '../agents')
-  const scriptPath = path.join(agentDir, 'orchestrator/index.ts')
-  
-  console.log(`[API] Spawning orchestrator for strategy: ${strategy}`)
-  
-  const child = spawn('npx', ['ts-node', scriptPath, strategy], {
-    cwd: agentDir,
-    env: { ...process.env },
-    detached: true,
-    stdio: 'ignore'
-  })
-  
-  child.unref()
+  try {
+    const logs: string[] = []
+    
+    // Call orchestrator directly
+    await runOrchestrator(strategy, (msg) => {
+      logs.push(msg)
+    })
 
-  return NextResponse.json({ success: true, message: 'Orchestrator started' })
+    return NextResponse.json({ 
+      success: true, 
+      logs,
+      message: 'Orchestrator completed successfully' 
+    })
+  } catch (err: any) {
+    console.error('[Execute] Orchestrator failed:', err)
+    return NextResponse.json({ 
+      success: false, 
+      error: `Orchestrator failed: ${err.message}` 
+    }, { status: 500 })
+  }
 }

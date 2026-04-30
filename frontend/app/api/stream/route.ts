@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server'
-import { spawn } from 'child_process'
-import path from 'path'
+import { main as runOrchestrator } from '@/agents/orchestrator/index'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,32 +11,18 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'Strategy too short' }), { status: 400 })
   }
 
-  const agentsDir = path.resolve(process.cwd(), '..', 'agents')
-  const orchestratorPath = path.join(agentsDir, 'orchestrator', 'index.ts')
-
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       function send(data: object) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
       }
 
-      send({ type: 'status', message: '⚙ Starting Axiom agent pipeline…' })
+      send({ type: 'status', message: '⚙ Starting Axiom-Fi agent pipeline…' })
 
-      const proc = spawn(
-        'npx',
-        ['ts-node', '--project', path.join(agentsDir, 'tsconfig.json'), orchestratorPath, strategy],
-        {
-          cwd: agentsDir,
-          env: { ...process.env },
-          shell: true,
-        }
-      )
-
-      proc.stdout.on('data', (data: Buffer) => {
-        const lines = data.toString().split('\n').filter(l => l.trim())
-        lines.forEach(line => {
+      try {
+        await runOrchestrator(strategy, (line) => {
           const tag =
             line.includes('Research') ? 'research' :
             line.includes('Risk') || line.includes('risk') ? 'risk-guard' :
@@ -55,38 +40,14 @@ export async function POST(req: NextRequest) {
             txHash: txMatch?.[0],
           })
         })
-      })
 
-      proc.stderr.on('data', (data: Buffer) => {
-        const lines = data.toString().split('\n').filter(l => l.trim())
-        lines.forEach(line => {
-          // Only surface real errors, not ts-node compilation noise
-          if (line.includes('Error') || line.includes('WARN')) {
-            send({ type: 'error', message: line.trim() })
-          }
-        })
-      })
-
-      proc.on('close', (code: number | null) => {
-        if (code === 0) {
-          send({ type: 'done', success: true, message: '✅ Pipeline complete. Audit trail written to 0G Storage.' })
-        } else {
-          send({ type: 'done', success: false, message: `⚠ Pipeline exited with code ${code}` })
-        }
+        send({ type: 'done', success: true, message: '✅ Pipeline complete. Audit trail written to 0G Storage.' })
+      } catch (err: any) {
+        console.error('[Stream] Orchestrator failed:', err)
+        send({ type: 'error', message: `Orchestrator failed: ${err.message}` })
+      } finally {
         controller.close()
-      })
-
-      proc.on('error', (err: Error) => {
-        send({ type: 'error', message: `Failed to start orchestrator: ${err.message}` })
-        controller.close()
-      })
-
-      // 3 minute timeout
-      setTimeout(() => {
-        proc.kill()
-        send({ type: 'done', success: false, message: '⚠ Pipeline timed out after 3 minutes' })
-        controller.close()
-      }, 180_000)
+      }
     }
   })
 

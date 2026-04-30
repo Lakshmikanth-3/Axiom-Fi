@@ -56,27 +56,12 @@ RECOMMENDATION: <YES or NO>
 REASON: <one sentence>
 CONFIDENCE: <0-100>`;
 
-  let recommendation = "";
-  let inferenceModel = "unknown";
-  let inferenceProvider = "unknown";
-
-  try {
-    console.log(`[Research] Sending prompt to 0G Compute Network...`);
-    const inference = await runDecentralizedInference({ prompt, signer: wallet });
-    recommendation = inference.response;
-    inferenceModel = inference.model;
-    inferenceProvider = inference.providerAddress;
-    console.log(`[Research ✓] 0G inference complete. Model=${inferenceModel} Provider=${inferenceProvider}`);
-  } catch (e: any) {
-    // Degrade to rule-based recommendation — still real, just not decentralized
-    console.warn(`[Research WARN] 0G Compute unavailable: ${e.message}`);
-    const isBullish = ethChange24h > 0 && ethPrice > 1000;
-    recommendation = isBullish
-      ? `RECOMMENDATION: YES\nREASON: ETH up ${ethChange24h.toFixed(1)}% in 24h with strong Uniswap TVL.\nCONFIDENCE: 72`
-      : `RECOMMENDATION: NO\nREASON: ETH down ${Math.abs(ethChange24h).toFixed(1)}% in 24h — bearish conditions.\nCONFIDENCE: 65`;
-    inferenceModel = "rule-based-fallback";
-    console.log(`[Research ✓] Rule-based recommendation: ${recommendation.split('\n')[0]}`);
-  }
+  console.log(`[Research] Sending prompt to 0G Compute Network...`);
+  const inference = await runDecentralizedInference({ prompt, signer: wallet });
+  const recommendation = inference.response;
+  const inferenceModel = inference.model;
+  const inferenceProvider = inference.providerAddress;
+  console.log(`[Research ✓] 0G inference complete. Model=${inferenceModel} Provider=${inferenceProvider}`);
 
   // ── 3. Write state to 0G KV (non-blocking, graceful degradation) ─────────────
   const kvResult = await write0GKV({
