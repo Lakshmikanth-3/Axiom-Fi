@@ -4,7 +4,10 @@
   "description": "Axiom multi-agent layer",
   "main": "orchestrator/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test:infra": "npx ts-node scripts/test-infra.ts",
+    "test:research": "npx ts-node scripts/test-research.ts",
+    "test:executor": "npx ts-node scripts/test-executor.ts",
+    "test:full": "npx ts-node scripts/test-full.ts"
   },
   "dependencies": {
     "@0gfoundation/0g-ts-sdk": "^1.2.6",

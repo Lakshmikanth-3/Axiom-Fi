@@ -16,59 +16,85 @@ export async function runDecentralizedInference(params: {
 
   // 2. List available inference services
   const services = await broker.inference.listService();
-  const chatServices = services.filter((s: any) => s.serviceType === "chatbot");
+  const chatServices = services
+    .filter((s: any) => s.serviceType.toLowerCase().includes("chat") || s.serviceType === "")
+    .sort(() => Math.random() - 0.5); // Shuffle to avoid bad nodes
 
-  if (chatServices.length === 0) throw new Error("No 0G Compute providers available");
+  console.log(`[0G Compute] Found ${chatServices.length} potential providers in network.`);
 
-  // 3. Select the first available provider
-  const service = chatServices[0];
-  const providerAddress = service.provider;
+  if (chatServices.length === 0) {
+    throw new Error("0G_NETWORK_ERROR: No active LLM providers found in the 0G Compute registry.");
+  }
 
-  // 4. Initialize Ledger Account and Deposit (0G Compute requires this on first run)
-  try {
-    console.log(`[Research] Initializing 0G Compute Ledger account...`);
-    await broker.ledger.addLedger(3);
-    await broker.ledger.depositFund(3);
+  // 3. Initialize Ledger (ONLY ONCE if needed) to save gas
+  try { 
+    console.log(`[0G Compute] Checking Ledger status...`);
+    await broker.ledger.addLedger(1); 
+    await broker.ledger.depositFund(1); 
   } catch (e: any) {
-    if (!e.message.includes("already exists")) {
-      console.log(`[Research] Ledger init notice: ${e.message}`);
+    // Skip if already exists to avoid wasting gas
+  }
+
+  // 4. Try more providers to increase success rate (up to 10)
+  for (const service of chatServices.slice(0, 10)) { 
+    const providerAddress = service.provider;
+    try {
+      console.log(`[0G Compute] Attempting provider: ${providerAddress}...`);
+      
+      const { endpoint, model: metaModel } = await broker.inference.getServiceMetadata(providerAddress);
+      
+      // Some providers have bad metadata; try the metadata model first, then common aliases
+      const modelsToTry = [metaModel, "llama3", "gpt-3.5-turbo", "mistral"];
+      
+      for (const model of modelsToTry) {
+        if (!model) continue;
+        try {
+          const headers = await broker.inference.getRequestHeaders(providerAddress, params.prompt);
+          const body = JSON.stringify({
+            model: model,
+            messages: [{ role: "user", content: params.prompt }],
+          });
+
+          // Normalize endpoint: ensure it ends with /v1/chat/completions correctly
+          const baseUrl = endpoint.endsWith("/") ? endpoint.slice(0, -1) : endpoint;
+          const targetPath = baseUrl.includes("/v1") ? "/chat/completions" : "/v1/chat/completions";
+          const fullUrl = `${baseUrl}${targetPath}`;
+
+          console.log(`[0G Debug] Sending to ${fullUrl}`);
+          console.log(`[0G Debug] Headers:`, JSON.stringify(headers));
+          console.log(`[0G Debug] Body:`, body);
+
+          const response = await fetch(fullUrl, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json", 
+              "Accept": "application/json",
+              ...(headers as any) 
+            },
+            body: body,
+            signal: AbortSignal.timeout(10000)
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            const content = result.choices[0].message.content;
+            const chatID = response.headers.get("ZG-Res-Key") || result.id;
+            broker.inference.processResponse(providerAddress, chatID, JSON.stringify(result.usage)).catch(() => {});
+            return { response: content, providerAddress, model };
+          } else {
+            const errBody = await response.text();
+            console.warn(`[0G Compute] Provider ${providerAddress} (Model: ${model}) failed with ${response.status}: ${errBody}`);
+          }
+        } catch (innerE: any) {
+          console.warn(`[0G Compute] Model ${model} failed: ${innerE.message}`);
+          continue; 
+        }
+      } // end models loop
+    } catch (e: any) {
+      console.warn(`[0G Compute] Provider skip: ${e.message}`);
     }
-  }
+  } // end providers loop
 
-  // 5. Get metadata (endpoint and model name)
-  const { endpoint, model } = await broker.inference.getServiceMetadata(providerAddress);
-
-  // 6. Get billing headers for the request
-  const headers = await broker.inference.getRequestHeaders(providerAddress, params.prompt);
-
-  // 7. Execute request using standard fetch
-  const response = await fetch(`${endpoint}/v1/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(headers as any),
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [{ role: "user", content: params.prompt }],
-    }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`0G Inference Request Failed: ${response.statusText} - ${errorBody}`);
-  }
-
-  const result = await response.json();
-  const content = result.choices[0].message.content;
-
-  // 8. Process response
-  const chatID = response.headers.get("ZG-Res-Key") || result.id;
-  await broker.inference.processResponse(providerAddress, chatID, JSON.stringify(result.usage));
-
-  return {
-    response: content,
-    providerAddress,
-    model,
-  };
+  // 4. Final Error if all providers fail
+  throw new Error("0G_NETWORK_UNAVAILABLE: All discovered 0G Compute providers failed or returned unsupported endpoints.");
 }

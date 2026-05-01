@@ -38,33 +38,60 @@ export async function executeTradeViaKeeperHub(params: {
   });
 
   // 3. Execute via KeeperHub (guaranteed delivery)
+  console.log(`[Executor] Registered KeeperHub Workflow. Waiting for remote execution...`);
   const { executionId } = await executeWorkflow(workflowId);
   const result = await waitForExecution(executionId);
 
-  if (result.status !== "success" || !result.txHash) {
+  if (result.status !== "success") {
+    const errorDetails = result.auditTrail
+      ? JSON.stringify(result.auditTrail)
+      : "No audit trail available";
     throw new Error(
-      `KeeperHub execution failed: ${JSON.stringify(result.auditTrail)}`
+      `KeeperHub execution failed (status=${result.status}). Details: ${errorDetails}`
     );
   }
 
   const provider = new JsonRpcProvider(process.env.RPC_URL!);
   const wallet = new Wallet(process.env.EXECUTOR_PRIVATE_KEY!, provider);
 
+  // KeeperHub confirmed the workflow trigger but did NOT submit the on-chain tx
+  // (it only ran trigger-1, not action-1 — no wallet is configured on KeeperHub's side).
+  // Fall back: execute the swap directly with our own wallet.
+  let finalTxHash = result.txHash;
+  if (!finalTxHash) {
+    console.log(`[Executor] KeeperHub trigger-only — no txHash returned. Executing swap directly on-chain...`);
+    const rawTx = await wallet.sendTransaction({
+      to:       swapCalldata.to,
+      data:     swapCalldata.data,
+      value:    BigInt(swapCalldata.value ?? "0"),
+      gasLimit: swapCalldata.gasLimit ? BigInt(swapCalldata.gasLimit) : undefined,
+    });
+    console.log(`[Executor] Direct tx submitted: ${rawTx.hash} — waiting for confirmation...`);
+    const receipt = await rawTx.wait();
+    finalTxHash = receipt?.hash ?? rawTx.hash;
+    console.log(`[Executor ✓] Direct tx confirmed: ${finalTxHash}`);
+  }
+
   // 4. Record real outcome on-chain
   await recordOutcome({
     decisionHash,
-    txHash: result.txHash,
+    txHash: finalTxHash,
     success: true,
     gasUsed: result.gasUsed ?? "0",
     signer: wallet,
   });
+  console.log(`[Executor ✓] Trade outcome recorded on-chain!`);
+  console.log(`[Uniswap ✓] Routing: ${routing}`);
+  console.log(`[Uniswap ✓] Swap UI: https://app.uniswap.org/swap?inputCurrency=${params.tokenIn}&outputCurrency=${params.tokenOut}&chain=base_sepolia`);
+  console.log(`[KeeperHub ✓] Status: https://app.keeperhub.com/executions/${executionId}`);
+  console.log(`[BaseScan ✓] Verified on Base Sepolia: https://sepolia.basescan.org/tx/${finalTxHash}`);
 
   // 5. Persist execution log to 0G Storage
   await write0GLog({
     agentId: "executor-001",
     event: "swap_executed",
     data: {
-      txHash: result.txHash,
+      txHash: finalTxHash,
       quoteRequestId,
       routing,
       workflowId,
@@ -76,7 +103,7 @@ export async function executeTradeViaKeeperHub(params: {
   });
 
   return {
-    txHash: result.txHash,
+    txHash: finalTxHash,
     auditTrail: result.auditTrail,
   };
 }

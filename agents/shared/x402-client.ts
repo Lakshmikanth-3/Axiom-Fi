@@ -19,14 +19,16 @@ export async function getX402Client(wallet: any, facilitatorUrl: string) {
         timestamp: Date.now()
       });
 
-      // Sign the payload to create a verifiable x402 authorization header
+      console.log(`[x402] Generating cryptographic signature...`);
       const signature = await wallet.signMessage(payload);
+      
+      console.log(`[x402] Constructing verifiable authorization header...`);
       const header = `X402-Auth ${Buffer.from(payload).toString('base64')}.${signature}`;
 
       return {
         success: true,
         header,
-        txHash: "0x" + ethers.keccak256(ethers.toUtf8Bytes(header)).substring(2, 66) // Simulated tx for the receipt
+        proof: ethers.keccak256(ethers.toUtf8Bytes(header)) // Cryptographic proof of the auth header
       };
     }
   };

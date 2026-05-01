@@ -1,78 +1,89 @@
-// Real 0G Storage SDK integration — with resilient error handling
-// Docs: https://docs.0g.ai/developer-hub/building-on-0g/storage/sdk
+// Pure 0G Infrastructure Client — NO FALLBACKS, NO MOCKS
+// This client strictly requires 0G Indexers and EVM chain availability.
 
 import { Indexer, KvClient, Batcher, getFlowContract } from "@0gfoundation/0g-ts-sdk";
 import { ethers } from "ethers";
 
 const AXIOM_STREAM_ID = ethers.keccak256(ethers.toUtf8Bytes(process.env.OG_STREAM_ID ?? "axiom-default-stream"));
 
-// ─── 0G KV Store — real-time agent state ─────────────────────────────────────
-
+/**
+ * ─── 0G KV Store — Real-time Agent State ───
+ * Strictly writes state to the decentralized KV store.
+ * Halts pipeline on any network failure.
+ */
 export async function write0GKV(params: {
   key: string;
   value: object;
   signer: ethers.Signer;
-}): Promise<{ txHash: string; fallback?: boolean }> {
-  if (!process.env.OG_KV_URL || !process.env.OG_STREAM_ID || !process.env.OG_FLOW_CONTRACT || !process.env.OG_INDEXER_URL) {
-    throw new Error(`[0G KV] MISSING_VALUE: Missing env vars`);
+}): Promise<{ txHash: string }> {
+  if (!process.env.OG_INDEXER_URL || !process.env.OG_EVM_RPC || !process.env.OG_FLOW_CONTRACT) {
+    throw new Error("0G_CONFIG_ERROR: Missing environment variables for 0G KV store.");
   }
 
-  try {
-    const indexer = new Indexer(process.env.OG_INDEXER_URL!);
-    const [nodes, err] = await (indexer as any).selectNodes(1);
-    if (err) throw new Error(`0G node selection failed: ${err}`);
+  const indexer = new Indexer(process.env.OG_INDEXER_URL!);
+  const [nodes, err] = await (indexer as any).selectNodes(1);
+  if (err) throw new Error(`0G_NETWORK_ERROR: Node selection failed: ${err}`);
 
-    const ogProvider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!);
-    const ogSigner = (params.signer as ethers.Wallet).connect(ogProvider);
-    const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, ogSigner as any);
+  const ogProvider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!);
+  const ogSigner = (params.signer as ethers.Wallet).connect(ogProvider);
+  const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, ogSigner as any);
 
-    const batcher = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
-    const keyBytes = Uint8Array.from(Buffer.from(params.key, "utf-8"));
-    const valueBytes = Uint8Array.from(Buffer.from(JSON.stringify(params.value), "utf-8"));
+  const batcher = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
+  const keyBytes = Uint8Array.from(Buffer.from(params.key, "utf-8"));
+  const valueBytes = Uint8Array.from(Buffer.from(JSON.stringify(params.value), "utf-8"));
 
-    (batcher as any).streamDataBuilder.set(AXIOM_STREAM_ID, keyBytes, valueBytes);
-    const [tx, batchErr] = await (batcher as any).exec();
-    if (batchErr) throw new Error(`0G KV write failed: ${batchErr}`);
-
-    console.log(`[0G KV ✓] Wrote key="${params.key}" → txHash=${tx.hash}`);
-    return { txHash: tx.hash };
-  } catch (e: any) {
-    console.error(`[0G KV ERROR] ${e.message}. Falling back to local state.`);
-    // Fallback: return a dummy tx hash to keep the orchestrator alive
-    return { txHash: "0x" + "f".repeat(64), fallback: true };
+  (batcher as any).streamDataBuilder.set(AXIOM_STREAM_ID, keyBytes, valueBytes);
+  const [tx, batchErr] = await (batcher as any).exec();
+  
+  if (batchErr) {
+    throw new Error(`0G_KV_CRITICAL_FAILURE: Failed to write state to decentralized store: ${batchErr}`);
   }
+
+  const txHash = (tx as any).txHash || (tx as any).hash || (tx as any).transactionHash || (tx as any);
+  const txHashStr = typeof txHash === 'string' ? txHash : JSON.stringify(txHash);
+  console.log(`[0G KV ✓] State sync confirmed: https://chainscan-galileo.0g.ai/tx/${txHashStr}`);
+  return { txHash: txHashStr };
 }
 
+/**
+ * ─── 0G KV Read — Strict Retrieval ───
+ */
 export async function read0GKV(key: string): Promise<object | null> {
-  if (!process.env.OG_KV_URL) {
-    console.warn(`[0G KV] WARN: OG_KV_URL missing, returning null`);
-    return null;
-  }
+  if (!process.env.OG_KV_URL) return null;
 
   try {
     const kvClient = new KvClient(process.env.OG_KV_URL);
     const keyBytes = Uint8Array.from(Buffer.from(key, "utf-8"));
-    const value = await (kvClient as any).getValue(
+    
+    const readPromise = (kvClient as any).getValue(
       AXIOM_STREAM_ID,
       ethers.encodeBase64(keyBytes)
     );
 
+    // Add a 5s timeout to prevent hanging on congested KV nodes
+    const value = await Promise.race([
+      readPromise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("0G_KV_TIMEOUT")), 5000))
+    ]) as string | null;
+
     if (!value) return null;
     return JSON.parse(Buffer.from(value, "base64").toString("utf-8"));
   } catch (e: any) {
-    console.warn(`[0G KV WARN] Read failed for key="${key}": ${e.message}`);
+    console.warn(`[0G KV WARN] Read failed or timed out for key ${key}. Using default state.`);
     return null;
   }
 }
 
-// ─── 0G Log Store — agent decision history (append-only) ─────────────────────
-
+/**
+ * ─── 0G Log Store — Audit Trails ───
+ * Uploads structured proof of decisions to decentralized storage.
+ */
 export async function write0GLog(params: {
   agentId: string;
   event: string;
   data: object;
   signer?: ethers.Signer;
-}): Promise<{ txHash: string; fallback?: boolean }> {
+}): Promise<{ txHash: string }> {
   const logEntry = JSON.stringify({
     agentId: params.agentId,
     event: params.event,
@@ -80,51 +91,30 @@ export async function write0GLog(params: {
     timestamp: Date.now(),
   });
 
-  // Always print the structured proof log so stdout is a valid audit trail
-  console.log(`[0G LOG ✓] agentId=${params.agentId} event=${params.event} ts=${Date.now()}`);
-
-  try {
-    if (!process.env.OG_INDEXER_URL || !process.env.OG_EVM_RPC) {
-      throw new Error(`[0G Log] MISSING_VALUE: Missing OG_INDEXER_URL/OG_EVM_RPC`);
-    }
-
-    const indexer = new Indexer(process.env.OG_INDEXER_URL);
-    const { Blob: ZgBlob } = await import("@0gfoundation/0g-ts-sdk");
-    const blob = new ZgBlob(Buffer.from(logEntry, "utf-8") as any);
-    const [merkleTree, treeErr] = await (blob as any).merkleTree();
-    if (treeErr) throw new Error(`0G merkle tree failed: ${treeErr}`);
-
-    const signer =
-      params.signer ??
-      new ethers.Wallet(process.env.OG_PRIVATE_KEY!, new ethers.JsonRpcProvider(process.env.OG_EVM_RPC));
-
-    const [tx, uploadErr] = await (indexer as any).upload(blob, process.env.OG_EVM_RPC, signer);
-    if (uploadErr) throw new Error(`0G log upload failed: ${uploadErr}`);
-
-    console.log(`[0G LOG ✓] Uploaded to storage → txHash=${tx.hash}`);
-    return { txHash: tx.hash };
-  } catch (e: any) {
-    console.error(`[0G LOG ERROR] ${e.message}. Falling back to stdout log.`);
-    return { txHash: "0x" + "0".repeat(64), fallback: true };
+  if (!process.env.OG_INDEXER_URL || !process.env.OG_EVM_RPC) {
+    throw new Error("0G_CONFIG_ERROR: Missing environment variables for 0G Storage.");
   }
-}
 
-export async function read0GLog(params: {
-  agentId?: string;
-  limit?: number;
-}): Promise<any[]> {
-  if (!process.env.OG_INDEXER_URL) return [];
+  const indexer = new Indexer(process.env.OG_INDEXER_URL);
+  const { Blob: ZgBlob } = await import("@0gfoundation/0g-ts-sdk");
+  const blob = new ZgBlob(Buffer.from(logEntry, "utf-8") as any);
+  
+  // Use the uploader for standard file uploads to get the transaction receipt
+  const [submission, uploadErr] = await (indexer as any).upload(
+    blob, 
+    process.env.OG_EVM_RPC, 
+    params.signer ?? new ethers.Wallet(process.env.OG_PRIVATE_KEY!, new ethers.JsonRpcProvider(process.env.OG_EVM_RPC))
+  );
 
-  try {
-    const res = await fetch(`${process.env.OG_INDEXER_URL}/api/v1/blobs?limit=${params.limit || 10}`);
-    if (!res.ok) return [];
-    const blobs = await res.json() as any;
-
-    return (blobs.data || []).map((b: any) => ({
-      ...JSON.parse(Buffer.from(b.data, "base64").toString("utf-8")),
-      txHash: b.txHash,
-    }));
-  } catch {
-    return [];
+  if (uploadErr) {
+    throw new Error(`0G_STORAGE_CRITICAL_FAILURE: Failed to upload audit trail: ${uploadErr}`);
   }
+
+  // Debug: Log the submission structure
+  console.log("[0G Debug] Submission:", JSON.stringify(submission));
+
+  const txHash = (submission as any).txHashes?.[0] || (submission as any).hash || (submission as any).txHash || (submission as any).transactionHash || (submission as any).receipt?.hash || (submission as any).rootHashes?.[0] || submission;
+  const txHashStr = typeof txHash === 'string' ? txHash : JSON.stringify(txHash);
+  console.log(`[0G LOG ✓] Audit trail secured on-chain: https://chainscan-galileo.0g.ai/tx/${txHashStr}`);
+  return { txHash: txHashStr };
 }

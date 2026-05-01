@@ -87,7 +87,8 @@ export async function buildAndExecuteSwap(params: {
 
   // Step 5: Build real swap calldata
   const swapTx = await buildSwapTx({
-    quote,
+    quote: quote.quote,
+    requestId: quote.requestId,
     swapperSignature,
     simulate: true,
   });

@@ -202,8 +202,8 @@ export default function AgentsMarketplace() {
               </p>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-                {agent.tags.map(tag => (
-                  <span key={tag} style={{
+                {agent.tags.map((tag: string, idx: number) => (
+                  <span key={`${agent.id}-${tag}-${idx}`} style={{
                     padding: '3px 10px',
                     background: 'rgba(30,58,110,0.2)',
                     border: '1px solid var(--border)',
@@ -247,13 +247,6 @@ export default function AgentsMarketplace() {
         </div>
       </div>
 
-      <style jsx>{`
-        .agent-card-hover:hover {
-          border-color: var(--border-accent);
-          transform: translateY(-4px);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-      `}</style>
     </main>
   )
 }

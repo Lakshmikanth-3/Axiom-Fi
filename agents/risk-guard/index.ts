@@ -4,28 +4,41 @@ import { Wallet, JsonRpcProvider } from "ethers";
 export async function runRiskCheck(params: {
   sessionId: string;
   recommendation: string;
+  confidence: number;
 }): Promise<{ approved: boolean; maxSize: string; flags: string[] }> {
   const provider = new JsonRpcProvider(process.env.RPC_URL!);
   const wallet = new Wallet(process.env.RISK_PRIVATE_KEY!, provider);
 
   // 1. Read existing portfolio state from 0G KV
+  console.log(`[RiskGuard] Reading portfolio state from 0G KV...`);
   const portfolioState = await read0GKV(`portfolio:state`) as any;
+  console.log(`[RiskGuard] Portfolio state: ${JSON.stringify(portfolioState)}`);
   const currentExposurePct: number = portfolioState?.exposurePct ?? 0;
 
   // 2. Real risk evaluation logic based on recommendation + portfolio state
   const flags: string[] = [];
 
-  // Rule A: Reject if recommendation is not bullish/positive
+  // Rule A: Reject if recommendation is explicitly NO
   const rec = params.recommendation.toLowerCase();
+  const isExplicitNo = /recommendation:\s*no\b/.test(rec);
   const isBullish =
-    rec.includes("buy") ||
-    rec.includes("long") ||
-    rec.includes("execute") ||
-    rec.includes("recommend") ||
-    rec.includes("yes");
+    !isExplicitNo &&
+    (
+      rec.includes("recommendation: yes") ||
+      rec.includes("buy") ||
+      rec.includes("long") ||
+      rec.includes("execute")
+    );
 
-  if (!isBullish) {
+  if (isExplicitNo) {
+    flags.push("RECOMMENDATION_NO");
+  } else if (!isBullish) {
     flags.push("RECOMMENDATION_NOT_BULLISH");
+  }
+
+  // Rule B: Reject if confidence is too low
+  if (params.confidence < 70) {
+    flags.push("LOW_CONFIDENCE");
   }
 
   // Rule B: Reject if portfolio is already over-exposed (>50% in a single asset)

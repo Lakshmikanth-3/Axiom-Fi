@@ -105,8 +105,9 @@ export async function getQuote(req: QuoteRequest): Promise<QuoteResponse> {
 
 // ─── Step 3: Build swap calldata ─────────────────────────────────────────────
 export interface SwapRequest {
-  quote: QuoteResponse;
-  swapperSignature?: string;  // EIP-712 signature if permitData was in quote
+  quote: any;               // the inner .quote object from QuoteResponse
+  requestId: string;
+  swapperSignature?: string;
   simulate?: boolean;
   refreshGasPrice?: boolean;
 }

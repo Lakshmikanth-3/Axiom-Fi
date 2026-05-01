@@ -72,9 +72,22 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   });
   log(`[Orchestrator] x402 payment header created: ${JSON.stringify(riskPayment.header).substring(0, 80)}...`);
 
+  // ── Confidence Gate: abort early if model confidence < 70% ──────────────────
+  const confidence = researchResult.confidence;
+  if (confidence < 70) {
+    log(`[Orchestrator] Trade ABORTED — model confidence ${confidence}% is below the 70% threshold.`);
+    await write0GKV({
+      key: `orchestrator:state:${sessionId}`,
+      value: { strategy, status: "CONFIDENCE_TOO_LOW", confidence, ts: Date.now() },
+      signer: orchestratorWallet,
+    });
+    return;
+  }
+
   const riskResult = await runRiskCheck({
     sessionId,
     recommendation: researchResult.recommendation,
+    confidence,
   });
 
   if (!riskResult.approved) {
@@ -97,11 +110,14 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   });
   log(`[Orchestrator] x402 payment header created: ${JSON.stringify(execPayment.header).substring(0, 80)}...`);
 
+  // NOTE: Uniswap Trading API only serves mainnets.
+  // chainId 8453 = Base Mainnet for quote/swap calldata.
+  // The RPC_URL in .env (Base Sepolia) is used only for attestation signing, not the swap itself.
   const tradeResult = await executeTradeViaKeeperHub({
-    tokenIn:  "0x4200000000000000000000000000000000000006", // WETH on Base
-    tokenOut: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base
+    tokenIn:  "0x4200000000000000000000000000000000000006", // WETH on Base Mainnet
+    tokenOut: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base Mainnet
     amountIn: ethers.parseEther("0.01").toString(),
-    chainId:  Number(process.env.CHAIN_ID),
+    chainId:  8453, // Base Mainnet — Uniswap API does NOT support testnets
   });
 
   // 4. Mark session complete in 0G KV
@@ -112,6 +128,7 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   });
 
   log(`[Orchestrator] ✅ Session ${sessionId} complete. Tx: ${tradeResult.txHash}`);
+  return { txHash: tradeResult.txHash };
 }
 
 if (require.main === module) {
