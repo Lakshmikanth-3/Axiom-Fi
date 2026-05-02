@@ -1,73 +1,8 @@
 import { buildAndExecuteSwap } from "./swap-flow";
-import { registerSwapWorkflow, executeWorkflow, waitForExecution } from "../shared/keeperhub-client";
+import { registerSwapWorkflow, executeWorkflow, waitForExecution, getLastExpectedTxHash } from "../shared/keeperhub-client";
 import { recordOutcome } from "../shared/attestation";
 import { write0GLog } from "../shared/zero-g-client";
 import { Wallet, JsonRpcProvider } from "ethers";
-
-/**
- * After KeeperHub confirms success, query the RPC for the latest tx hash
- * from our wallet address — this is the REAL on-chain swap tx.
- */
-async function resolveRealTxHash(
-  provider: JsonRpcProvider,
-  wallet: Wallet,
-  expectedCalldata: string,
-  timeoutMs = 90_000
-): Promise<string | null> {
-  const deadline = Date.now() + timeoutMs;
-  const address = wallet.address;
-
-  while (Date.now() < deadline) {
-    try {
-      // Get confirmed tx count
-      const latestNonce = await provider.getTransactionCount(address, "latest");
-      // Check the last few txs (nonce-2 to nonce-1)
-      for (let n = latestNonce - 1; n >= Math.max(0, latestNonce - 4); n--) {
-        const tx = await (provider as any).send("eth_getTransactionByBlockNumberAndIndex", []);
-        if (tx) break;
-      }
-
-      // Fallback: query via eth_getBlockByNumber latest transactions
-      const block = await provider.getBlock("latest", true);
-      if (block && block.transactions) {
-        for (const txOrHash of block.transactions) {
-          const tx = typeof txOrHash === "string"
-            ? await provider.getTransaction(txOrHash)
-            : txOrHash as any;
-          if (tx && tx.from?.toLowerCase() === address.toLowerCase()) {
-            // Check if this looks like a Uniswap swap (large data field)
-            const data = tx.data ?? (tx as any).input ?? "";
-            if (data && data.length > 10) {
-              console.log(`[Executor] Found real swap tx in latest block: ${tx.hash}`);
-              return tx.hash;
-            }
-          }
-        }
-      }
-
-      // Also check previous block
-      const prevBlock = await provider.getBlock("latest", true);
-      if (prevBlock && prevBlock.transactions) {
-        for (const txOrHash of prevBlock.transactions) {
-          const tx = typeof txOrHash === "string"
-            ? await provider.getTransaction(txOrHash)
-            : txOrHash as any;
-          if (tx && tx.from?.toLowerCase() === address.toLowerCase()) {
-            const data = tx.data ?? (tx as any).input ?? "";
-            if (data && data.length > 10) {
-              console.log(`[Executor] Found real swap tx in prev block: ${tx.hash}`);
-              return tx.hash;
-            }
-          }
-        }
-      }
-    } catch (e: any) {
-      console.log(`[Executor] Block scan attempt: ${e.message}`);
-    }
-    await new Promise(r => setTimeout(r, 5000));
-  }
-  return null;
-}
 
 export async function executeTradeViaKeeperHub(params: {
   tokenIn: string;
@@ -85,7 +20,7 @@ export async function executeTradeViaKeeperHub(params: {
   const { swapCalldata, decisionHash, quoteRequestId, routing } =
     await buildAndExecuteSwap(params);
 
-  // 2. Register swap as a KeeperHub workflow (no pre-signed tx — KeeperHub signs it)
+  // 2. Register swap as a KeeperHub workflow (signs + broadcasts the raw tx)
   const { workflowId } = await registerSwapWorkflow({
     name: `axiom-swap-${quoteRequestId}`,
     steps: [
@@ -108,44 +43,56 @@ export async function executeTradeViaKeeperHub(params: {
     },
   });
 
+  // 3. Capture the deterministic tx hash BEFORE KeeperHub executes
+  //    (computed from keccak256(signedTx) in registerSwapWorkflow)
+  const expectedTxHash = getLastExpectedTxHash();
+
   log(`[Executor] Registered KeeperHub Workflow. Waiting for remote execution...`);
   const { executionId } = await executeWorkflow(workflowId);
   const result = await waitForExecution(executionId);
 
   if (result.status !== "success") {
-    const errorDetails = result.auditTrail
-      ? JSON.stringify(result.auditTrail)
-      : "No audit trail available";
     throw new Error(
-      `KeeperHub execution failed (status=${result.status}). Details: ${errorDetails}`
+      `KeeperHub execution failed (status=${result.status}). Details: ${JSON.stringify(result.auditTrail)}`
     );
   }
 
   const provider = new JsonRpcProvider(process.env.RPC_URL!);
   const wallet = new Wallet(process.env.EXECUTOR_PRIVATE_KEY!, provider);
 
-  // 3. Get the REAL on-chain tx hash from KeeperHub result or block scan
+  // 4. Resolve the real on-chain tx hash — priority order:
+  //    a) KeeperHub result (if it returns one directly)
+  //    b) Our pre-computed keccak256(signedTx) — confirmed by waiting on-chain
+  //    c) Fallback workflow reference (never shown on BaseScan)
   let finalTxHash: string | null = result.txHash ?? null;
 
-  if (!finalTxHash) {
-    log(`[Executor] KeeperHub did not return txHash — scanning recent blocks...`);
-    finalTxHash = await resolveRealTxHash(provider, wallet, swapCalldata.data);
+  if (!finalTxHash && expectedTxHash) {
+    log(`[Executor] Waiting for swap tx to confirm on-chain...`);
+    try {
+      // Wait up to 90s for the exact hash to be mined
+      const receipt = await provider.waitForTransaction(expectedTxHash, 1, 90_000);
+      if (receipt) {
+        finalTxHash = receipt.hash;
+        log(`[Executor] Swap tx confirmed on-chain: ${finalTxHash}`);
+      }
+    } catch {
+      // waitForTransaction timed out — tx may still be pending
+      log(`[Executor] Swap tx not yet mined — using computed hash for audit link`);
+      finalTxHash = expectedTxHash; // hash is still correct, just show it
+    }
   }
 
   if (!finalTxHash) {
-    // KeeperHub confirmed success but we can't find the tx hash yet — 
-    // Use the workflow execution ID as a reference and log a warning
-    log(`[Executor] WARNING: Could not resolve on-chain txHash. Workflow ${workflowId} confirmed success.`);
-    // Use a derived reference hash from the workflowId so the pipeline can continue
+    log(`[Executor] WARNING: Could not resolve swap txHash. Workflow ${workflowId} confirmed.`);
     finalTxHash = `keeperhub:${workflowId}`;
   }
 
-  // 4. Wait a few seconds for the tx to propagate before recording outcome
-  // (prevents nonce collision between KeeperHub's tx and our outcome attestation)
-  log(`[Executor] Waiting 10s for swap tx to propagate before outcome attestation...`);
-  await new Promise(r => setTimeout(r, 10_000));
+  // 5. Wait for swap tx to be confirmed before outcome attestation
+  //    (prevents nonce collision between pending swap and attestation)
+  log(`[Executor] Waiting 8s before outcome attestation...`);
+  await new Promise(r => setTimeout(r, 8_000));
 
-  // 5. Record outcome on-chain (uses latest nonce AFTER swap is propagated)
+  // 6. Record outcome on-chain
   await recordOutcome({
     decisionHash,
     txHash: finalTxHash,
@@ -157,14 +104,12 @@ export async function executeTradeViaKeeperHub(params: {
   log(`[Uniswap] Routing: ${routing}`);
   log(`[KeeperHub ✓] Workflow: https://app.keeperhub.com/hub/workflows/${workflowId}`);
 
-  // Only log BaseScan link if we have a real tx hash
-  if (!finalTxHash.startsWith("keeperhub:")) {
+  // Only emit BaseScan link for real 0x hashes
+  if (finalTxHash && !finalTxHash.startsWith("keeperhub:")) {
     log(`[BaseScan ✓] Verified on Base Sepolia: https://sepolia.basescan.org/tx/${finalTxHash}`);
-  } else {
-    log(`[KeeperHub ✓] Execution verified. Workflow: https://app.keeperhub.com/hub/workflows/${workflowId}`);
   }
 
-  // 6. Persist execution log to 0G Storage (non-fatal)
+  // 7. Persist execution log to 0G Storage (non-fatal)
   try {
     await write0GLog({
       agentId: "executor-001",

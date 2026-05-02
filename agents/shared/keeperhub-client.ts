@@ -46,6 +46,12 @@ import { ethers, Wallet, JsonRpcProvider, TransactionRequest } from "ethers";
 
 let lastExpectedTxHash: string | null = null;
 
+/** Returns the keccak256(signedTx) hash computed during registerSwapWorkflow.
+ *  This IS the real BaseScan tx hash as long as KeeperHub broadcasts our exact signed bytes. */
+export function getLastExpectedTxHash(): string | null {
+  return lastExpectedTxHash;
+}
+
 export async function registerSwapWorkflow(
   config: SwapWorkflowConfig
 ): Promise<WorkflowRegistration> {
