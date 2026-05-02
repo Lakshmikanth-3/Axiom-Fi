@@ -15,6 +15,9 @@ interface SessionData {
   maxSize?: string
   attestationHash?: string
   txHash?: string
+  ogTxHash?: string
+  keeperHubId?: string
+  routing?: string
 }
 
 export default function AnalysisPage() {
@@ -22,15 +25,34 @@ export default function AnalysisPage() {
   const [session, setSession] = useState<SessionData>({})
   const [loaded, setLoaded] = useState(false)
 
+  function readSession() {
+    try {
+      const raw = sessionStorage.getItem('axiom-session')
+      if (raw) setSession(JSON.parse(raw))
+    } catch { }
+  }
+
   useEffect(() => {
-    const raw = sessionStorage.getItem('axiom-session')
-    if (raw) {
-      try { setSession(JSON.parse(raw)) } catch {}
-    }
+    readSession()
     setLoaded(true)
+
+    // Poll every 1.5s while pipeline is still running (no txHash yet)
+    const interval = setInterval(() => {
+      try {
+        const raw = sessionStorage.getItem('axiom-session')
+        if (!raw) return
+        const data = JSON.parse(raw)
+        setSession(data)
+        // Stop polling once pipeline is complete (txHash present)
+        if (data.txHash) clearInterval(interval)
+      } catch { }
+    }, 1500)
+
+    return () => clearInterval(interval)
   }, [])
 
   if (!loaded) return null
+
 
   if (!session.sessionId) {
     return (
@@ -54,20 +76,28 @@ export default function AnalysisPage() {
     )
   }
 
-  const researchDone  = !!session.ethPrice
-  const riskDone      = !!session.riskDecision
-  const executorDone  = !!session.txHash
-  const isApproved    = session.riskDecision?.includes('APPROVED')
+  const researchDone = !!session.ethPrice
+  const riskDone = !!(session.riskDecision && (session.riskDecision.includes('APPROVED') || session.riskDecision.includes('REJECTED')))
+  const executorDone = !!session.txHash
+  const isApproved = session.riskDecision?.includes('APPROVED')
+
+  // Parse MaxSize from "Decision: APPROVED | MaxSize: 0.1 ETH"
+  const maxSizeVal = session.riskDecision?.match(/MaxSize:\s*([\d.]+\s*ETH)/i)?.[1]
+    ?? session.maxSize?.match(/MaxSize:\s*([\d.]+)/)?.[1]
+
+  // Parse flags: if riskDecision says 'none' or no flags keyword
+  const flagsVal = session.riskDecision?.includes('none') ? 'none'
+    : session.riskDecision?.match(/Flags:\s*(.+)/)?.[1] ?? '—'
 
   const graphNodes = [
-    { id: 'research',   label: 'RESEARCH',   status: (researchDone ? 'done' : 'pending') as any, color: 'var(--blue-glow)' },
-    { id: 'risk-guard', label: 'RISK GUARD', status: (riskDone    ? 'done' : researchDone ? 'running' : 'pending') as any, color: 'var(--amber)' },
-    { id: 'executor',   label: 'EXECUTOR',   status: (executorDone ? 'done' : riskDone ? 'running' : 'pending') as any, color: 'var(--green)' },
+    { id: 'research', label: 'RESEARCH', status: (researchDone ? 'done' : 'pending') as any, color: 'var(--blue-glow)' },
+    { id: 'risk-guard', label: 'RISK GUARD', status: (riskDone ? (isApproved ? 'done' : 'failed') : researchDone ? 'running' : 'pending') as any, color: 'var(--amber)' },
+    { id: 'executor', label: 'EXECUTOR', status: (executorDone ? 'done' : riskDone && isApproved ? 'running' : 'pending') as any, color: 'var(--green)' },
   ]
 
   const graphEdges = [
-    { from: 'research',   to: 'risk-guard', amount: '$0.005', active: researchDone },
-    { from: 'risk-guard', to: 'executor',   amount: '$0.003', active: riskDone },
+    { from: 'research', to: 'risk-guard', amount: '$0.005', active: researchDone },
+    { from: 'risk-guard', to: 'executor', amount: '$0.003', active: riskDone },
   ]
 
   // Parse recommendation text
@@ -106,10 +136,10 @@ export default function AnalysisPage() {
         </span>
         <span style={{
           fontFamily: "'Space Mono'", fontSize: '0.62rem',
-          color: isApproved ? 'var(--green)' : 'var(--amber)',
+          color: executorDone ? 'var(--green)' : isApproved ? 'var(--green)' : riskDone ? 'var(--red)' : 'var(--amber)',
           letterSpacing: '0.08em',
         }}>
-          {isApproved ? '✓ APPROVED' : riskDone ? '✗ REJECTED' : '○ IN PROGRESS'}
+          {executorDone ? '✓ COMPLETED' : isApproved ? '✓ APPROVED' : riskDone ? '✗ REJECTED' : '○ IN PROGRESS'}
         </span>
       </div>
 
@@ -176,8 +206,8 @@ export default function AnalysisPage() {
             color="var(--amber)"
             metrics={[
               { label: 'Decision', value: isApproved ? 'APPROVED' : riskDone ? 'REJECTED' : '—', highlight: true },
-              { label: 'Max Position', value: session.maxSize?.match(/MaxSize:\s*([\d.]+)/)?.[1] ? `${session.maxSize?.match(/MaxSize:\s*([\d.]+)/)?.[1]} ETH` : '—' },
-              { label: 'Flags', value: session.riskDecision?.includes('none') ? 'none' : '—' },
+              { label: 'Max Position', value: maxSizeVal ?? '—' },
+              { label: 'Flags', value: flagsVal },
               { label: 'Exposure', value: '10%' },
             ]}
             rawOutput={session.riskDecision || undefined}
@@ -189,12 +219,12 @@ export default function AnalysisPage() {
             status={executorDone ? 'done' : riskDone && isApproved ? 'running' : 'pending'}
             color="var(--green)"
             metrics={[
-              { label: 'Routing',  value: '—' },
-              { label: 'Protocol', value: '—' },
+              { label: 'Routing', value: session.routing ?? '—' },
+              { label: 'Protocol', value: session.routing ? 'Uniswap V3' : '—' },
               { label: 'Status', value: executorDone ? 'EXECUTED' : isApproved ? 'PENDING' : 'SKIPPED', highlight: executorDone },
               { label: 'Chain', value: 'Base Sepolia' },
             ]}
-            rawOutput={executorDone ? 'Swap calldata built and submitted to KeeperHub for guaranteed execution.' : undefined}
+            rawOutput={executorDone ? `Swap submitted to KeeperHub${session.keeperHubId ? ` (wf: ${session.keeperHubId})` : ''} for guaranteed execution.` : undefined}
             txHash={session.txHash}
             attestationHash={session.attestationHash}
           />
