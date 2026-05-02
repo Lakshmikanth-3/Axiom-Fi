@@ -102,11 +102,32 @@ export async function write0GKV(params: {
 
 // ─── 0G KV Read ──────────────────────────────────────────────────────────────
 export async function read0GKV(key: string): Promise<object | null> {
+  // 1. Check local on-chain-confirmed cache
   const cached = _stateCache.get(key);
   if (cached !== undefined) {
-    console.log(`[0G KV ✓] State read from on-chain-confirmed cache for key: ${key}`);
+    console.log(`[0G KV ✓] State read from local cache for key: ${key}`);
     return cached;
   }
+
+  // 2. Fetch from 0G KV Network
+  if (!process.env.OG_KV_URL) return null;
+  
+  try {
+    const kvClient = new KvClient(process.env.OG_KV_URL);
+    const keyBytes = Uint8Array.from(Buffer.from(key, "utf-8"));
+    const streamId = AXIOM_STREAM_ID;
+    
+    const value = await kvClient.getValue(streamId, keyBytes);
+    if (value) {
+      const decoded = JSON.parse(Buffer.from(value).toString("utf-8"));
+      _stateCache.set(key, decoded); // hydrate cache
+      console.log(`[0G KV ✓] State fetched from network for key: ${key}`);
+      return decoded;
+    }
+  } catch (e: any) {
+    console.warn(`[0G KV] Network read failed for ${key}: ${e.message}`);
+  }
+
   return null;
 }
 

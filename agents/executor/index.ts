@@ -10,6 +10,7 @@ export async function executeTradeViaKeeperHub(params: {
   amountIn: string;
   chainId: number;
   onLog?: (msg: string) => void;
+  confidence?: number;
 }): Promise<{ txHash: string; auditTrail: object[] }> {
   const log = (msg: string) => {
     if (params.onLog) params.onLog(msg);
@@ -18,7 +19,7 @@ export async function executeTradeViaKeeperHub(params: {
 
   // 1. Build swap calldata from Uniswap API + record decision attestation
   const { swapCalldata, decisionHash, quoteRequestId, routing } =
-    await buildAndExecuteSwap(params);
+    await buildAndExecuteSwap({ ...params, confidence: params.confidence ?? 95 });
 
   // 2. Register swap as a KeeperHub workflow (signs + broadcasts the raw tx)
   const { workflowId } = await registerSwapWorkflow({

@@ -130,6 +130,7 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
     amountIn: ethers.parseEther("0.01").toString(),
     chainId:  8453,
     onLog:    (msg) => log(msg),
+    confidence: researchResult.confidence,
   });
 
   // 4. Mark session complete in 0G KV (non-fatal)

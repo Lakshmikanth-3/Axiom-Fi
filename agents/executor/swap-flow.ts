@@ -9,6 +9,7 @@ export async function buildAndExecuteSwap(params: {
   tokenOut: string;
   amountIn: string;   // in wei
   chainId: number;
+  confidence: number;
 }): Promise<{
   swapCalldata: any;
   decisionHash: string;
@@ -70,7 +71,7 @@ export async function buildAndExecuteSwap(params: {
   const { decisionHash } = await recordDecision({
     agentId: "executor-001",
     payload: decisionPayload,
-    confidence: 95,
+    confidence: params.confidence,
     signer: wallet,
   });
 
