@@ -46,20 +46,22 @@ export async function runDecentralizedInference(params: {
     throw new Error("0G_NETWORK_ERROR: No active LLM providers found in the 0G Compute registry.");
   }
 
-  // 3. Initialize Ledger — check existence FIRST to avoid out-of-gas revert on 0G chain
+  // 3. Initialize Ledger — only on first-ever run.
+  //    OG_LEDGER_INITIALIZED=true in .env skips addLedger to prevent
+  //    on-chain 'out of gas' reverts when ledger already exists.
   _origLog(`[0G Compute] Checking Ledger status...`);
-  try {
-    const ledgerInfo = await broker.ledger.getLedger().catch(() => null);
-    if (!ledgerInfo) {
-      _origLog(`[0G Compute] Creating new ledger...`);
+  if (process.env.OG_LEDGER_INITIALIZED !== 'true') {
+    try {
       await broker.ledger.addLedger(1);
       await broker.ledger.depositFund(1);
       _origLog(`[0G Compute] Ledger created and funded.`);
-    } else {
-      _origLog(`[0G Compute] Ledger already exists — skipping creation.`);
+    } catch (e: any) {
+      // Ledger likely already exists — this is expected on 2nd+ run
+      // Set OG_LEDGER_INITIALIZED=true in .env to skip this permanently
+      _origLog(`[0G Compute] Ledger init skipped (already exists): ${e.message?.slice(0, 60)}`);
     }
-  } catch (e: any) {
-    _origLog(`[0G Compute] Ledger init warning (non-fatal): ${e.message}`);
+  } else {
+    _origLog(`[0G Compute] Ledger already initialized — skipping addLedger.`);
   }
 
   // 4. Try more providers to increase success rate (up to 10)

@@ -102,7 +102,7 @@ export async function executeTradeViaKeeperHub(params: {
   });
   log(`[Executor] Trade outcome recorded on-chain!`);
   log(`[Uniswap] Routing: ${routing}`);
-  log(`[KeeperHub ✓] Workflow: https://app.keeperhub.com/hub/workflows/${workflowId}`);
+  log(`[KeeperHub ✓] Workflow: https://app.keeperhub.com/workflows/${workflowId}`);
 
   // Only emit BaseScan link for real 0x hashes
   if (finalTxHash && !finalTxHash.startsWith("keeperhub:")) {

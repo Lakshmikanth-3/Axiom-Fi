@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
           const ogMatch = line.match(/chainscan-galileo\.0g\.ai\/tx\/(0x[a-fA-F0-9]{64})/)
           const ogTxHash = ogMatch?.[1]
 
-          // KeeperHub workflow ID
-          const khMatch = line.match(/keeperhub\.com\/hub\/workflows\/([a-zA-Z0-9_-]+)/)
+          // KeeperHub workflow ID (handles both /hub/workflows/ and /workflows/)
+          const khMatch = line.match(/keeperhub\.com\/(?:hub\/)?workflows\/([a-zA-Z0-9_-]+)/)
           const keeperHubId = khMatch?.[1]
 
           send({
