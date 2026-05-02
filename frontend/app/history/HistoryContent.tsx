@@ -6,7 +6,7 @@ import Link from "next/link"
 
 const BASESCAN = "https://sepolia.basescan.org"
 const OG_SCAN  = "https://chainscan-galileo.0g.ai"
-const KH_BASE  = "https://app.keeperhub.com/hub/workflows"
+const KH_BASE  = "https://app.keeperhub.com/workflows"
 
 type Trade = {
   strategy: string

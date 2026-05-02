@@ -101,7 +101,7 @@ export async function write0GKV(params: {
 }
 
 // ─── 0G KV Read ──────────────────────────────────────────────────────────────
-export async function read0GKV(key: string): Promise<object | null> {
+export async function read0GKV(key: string, retries = 2): Promise<object | null> {
   // 1. Check local on-chain-confirmed cache
   const cached = _stateCache.get(key);
   if (cached !== undefined) {
@@ -112,20 +112,27 @@ export async function read0GKV(key: string): Promise<object | null> {
   // 2. Fetch from 0G KV Network
   if (!process.env.OG_KV_URL) return null;
   
-  try {
-    const kvClient = new KvClient(process.env.OG_KV_URL);
-    const keyBytes = Uint8Array.from(Buffer.from(key, "utf-8"));
-    const streamId = AXIOM_STREAM_ID;
-    
-    const value = await kvClient.getValue(streamId, keyBytes);
-    if (value) {
-      const decoded = JSON.parse(Buffer.from(value).toString("utf-8"));
-      _stateCache.set(key, decoded); // hydrate cache
-      console.log(`[0G KV ✓] State fetched from network for key: ${key}`);
-      return decoded;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const kvClient = new KvClient(process.env.OG_KV_URL);
+      const keyBytes = Uint8Array.from(Buffer.from(key, "utf-8"));
+      const streamId = AXIOM_STREAM_ID;
+      
+      const value = await kvClient.getValue(streamId, keyBytes);
+      if (value) {
+        const decoded = JSON.parse(Buffer.from(value).toString("utf-8"));
+        _stateCache.set(key, decoded); // hydrate cache
+        console.log(`[0G KV ✓] State fetched from network for key: ${key}`);
+        return decoded;
+      }
+      return null; // Key not found
+    } catch (e: any) {
+      if (i === retries) {
+        console.warn(`[0G KV] Network read failed after ${retries + 1} attempts for ${key}: ${e.message}`);
+      } else {
+        await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
+      }
     }
-  } catch (e: any) {
-    console.warn(`[0G KV] Network read failed for ${key}: ${e.message}`);
   }
 
   return null;

@@ -27,7 +27,7 @@ export async function runResearch(params: {
   let uniswapTvl = 0;
   try {
     const tvlRes = await fetch(`https://api.llama.fi/protocol/uniswap-v3`, {
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(15000)
     });
     if (tvlRes.ok) {
       const tvlData = await tvlRes.json();
