@@ -6,6 +6,7 @@
     "agent": "npx ts-node --project agents/tsconfig.json agents/orchestrator/index.ts",
     "bot": "npx ts-node --project agents/tsconfig.json agents/telegram/index.ts",
     "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
     "install:all": "npm install && cd frontend && npm install && cd agents && npm install"
   },
   "devDependencies": {
