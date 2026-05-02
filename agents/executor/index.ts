@@ -9,7 +9,12 @@ export async function executeTradeViaKeeperHub(params: {
   tokenOut: string;
   amountIn: string;
   chainId: number;
+  onLog?: (msg: string) => void;
 }): Promise<{ txHash: string; auditTrail: object[] }> {
+  const log = (msg: string) => {
+    if (params.onLog) params.onLog(msg);
+    else console.log(msg); // standalone mode only
+  };
   // 1. Build swap calldata from Uniswap API
   const { swapCalldata, decisionHash, quoteRequestId, routing } =
     await buildAndExecuteSwap(params);
@@ -37,8 +42,7 @@ export async function executeTradeViaKeeperHub(params: {
     },
   });
 
-  // 3. Execute via KeeperHub (guaranteed delivery)
-  console.log(`[Executor] Registered KeeperHub Workflow. Waiting for remote execution...`);
+  log(`[Executor] Registered KeeperHub Workflow. Waiting for remote execution...`);
   const { executionId } = await executeWorkflow(workflowId);
   const result = await waitForExecution(executionId);
 
@@ -54,22 +58,9 @@ export async function executeTradeViaKeeperHub(params: {
   const provider = new JsonRpcProvider(process.env.RPC_URL!);
   const wallet = new Wallet(process.env.EXECUTOR_PRIVATE_KEY!, provider);
 
-  // KeeperHub confirmed the workflow trigger but did NOT submit the on-chain tx
-  // (it only ran trigger-1, not action-1 — no wallet is configured on KeeperHub's side).
-  // Fall back: execute the swap directly with our own wallet.
-  let finalTxHash = result.txHash;
+  const finalTxHash = result.txHash;
   if (!finalTxHash) {
-    console.log(`[Executor] KeeperHub trigger-only — no txHash returned. Executing swap directly on-chain...`);
-    const rawTx = await wallet.sendTransaction({
-      to:       swapCalldata.to,
-      data:     swapCalldata.data,
-      value:    BigInt(swapCalldata.value ?? "0"),
-      gasLimit: swapCalldata.gasLimit ? BigInt(swapCalldata.gasLimit) : undefined,
-    });
-    console.log(`[Executor] Direct tx submitted: ${rawTx.hash} — waiting for confirmation...`);
-    const receipt = await rawTx.wait();
-    finalTxHash = receipt?.hash ?? rawTx.hash;
-    console.log(`[Executor ✓] Direct tx confirmed: ${finalTxHash}`);
+    throw new Error(`[Executor] FATAL: KeeperHub execution succeeded but returned no txHash. Real execution requires KeeperHub to broadcast the transaction.`);
   }
 
   // 4. Record real outcome on-chain
@@ -80,27 +71,30 @@ export async function executeTradeViaKeeperHub(params: {
     gasUsed: result.gasUsed ?? "0",
     signer: wallet,
   });
-  console.log(`[Executor ✓] Trade outcome recorded on-chain!`);
-  console.log(`[Uniswap ✓] Routing: ${routing}`);
-  console.log(`[Uniswap ✓] Swap UI: https://app.uniswap.org/swap?inputCurrency=${params.tokenIn}&outputCurrency=${params.tokenOut}&chain=base_sepolia`);
-  console.log(`[KeeperHub ✓] Status: https://app.keeperhub.com/executions/${executionId}`);
-  console.log(`[BaseScan ✓] Verified on Base Sepolia: https://sepolia.basescan.org/tx/${finalTxHash}`);
+  log(`[Executor] Trade outcome recorded on-chain!`);
+  log(`[Uniswap] Routing: ${routing}`);
+  log(`[KeeperHub ✓] Workflow: https://app.keeperhub.com/hub/workflows/${workflowId}`);
+  log(`[BaseScan ✓] Verified on Base Sepolia: https://sepolia.basescan.org/tx/${finalTxHash}`);
 
-  // 5. Persist execution log to 0G Storage
-  await write0GLog({
-    agentId: "executor-001",
-    event: "swap_executed",
-    data: {
-      txHash: finalTxHash,
-      quoteRequestId,
-      routing,
-      workflowId,
-      executionId,
-      auditTrail: result.auditTrail,
-      timestamp: Date.now(),
-    },
-    signer: wallet,
-  });
+  // 5. Persist execution log to 0G Storage (non-fatal)
+  try {
+    await write0GLog({
+      agentId: "executor-001",
+      event: "swap_executed",
+      data: {
+        txHash: finalTxHash,
+        quoteRequestId,
+        routing,
+        workflowId,
+        executionId,
+        auditTrail: result.auditTrail,
+        timestamp: Date.now(),
+      },
+      signer: wallet,
+    });
+  } catch (e: any) {
+    log(`[Executor] 0G log write skipped (non-fatal): ${e.message}`);
+  }
 
   return {
     txHash: finalTxHash,

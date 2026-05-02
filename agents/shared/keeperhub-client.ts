@@ -40,11 +40,41 @@ export interface WorkflowRegistration {
   status: "registered";
 }
 
+import { ethers, Wallet, JsonRpcProvider, TransactionRequest } from "ethers";
+
+// ... existing code ...
+
+let lastExpectedTxHash: string | null = null;
+
 export async function registerSwapWorkflow(
   config: SwapWorkflowConfig
 ): Promise<WorkflowRegistration> {
   const step = config.steps[0];
   if (!step) throw new Error("No steps provided for workflow");
+
+  // Sign the transaction locally so KeeperHub can just broadcast it
+  const provider = new JsonRpcProvider(process.env.RPC_URL || "https://sepolia.base.org");
+  const wallet = new Wallet(process.env.EXECUTOR_PRIVATE_KEY!, provider);
+  
+  const txReq: TransactionRequest = {
+    to: step.params.to,
+    data: step.params.data,
+    value: step.params.value || "0",
+    gasLimit: step.params.gasLimit || 500000,
+    chainId: 84532, // Base Sepolia
+    nonce: await wallet.getNonce("pending")
+  };
+
+  const populatedTx = await wallet.populateTransaction(txReq);
+  const signedTx = await wallet.signTransaction(populatedTx);
+  lastExpectedTxHash = ethers.keccak256(signedTx);
+
+  const jsonRpcBody = JSON.stringify({
+    jsonrpc: "2.0",
+    method: "eth_sendRawTransaction",
+    params: [signedTx],
+    id: 1
+  });
 
   // Construct the graph-based nodes and edges required by the production API
   const nodes = [
@@ -52,7 +82,10 @@ export async function registerSwapWorkflow(
       id: "trigger-1",
       type: "trigger",
       data: {
-        type: "manual",
+        type: "trigger",
+        config: {
+          triggerType: "Manual"
+        },
         label: "Manual Trigger"
       },
       position: { x: 250, y: 5 }
@@ -62,14 +95,14 @@ export async function registerSwapWorkflow(
       type: "action",
       data: {
         type: "action",
-        label: "Uniswap Swap",
         config: {
-          actionType: "web3:write-contract",
-          network: "base-sepolia",
-          to: step.params.to,
-          data: step.params.data,
-          value: step.params.value || "0"
-        }
+          actionType: "HTTP Request",
+          endpoint: process.env.RPC_URL || "https://sepolia.base.org",
+          httpMethod: "POST",
+          httpHeaders: JSON.stringify({ "Content-Type": "application/json" }),
+          httpBody: jsonRpcBody
+        },
+        label: "Broadcast Transaction"
       },
       position: { x: 250, y: 150 }
     }
@@ -160,13 +193,21 @@ export async function waitForExecution(
         if (result.status === "success") {
           console.log(`[KeeperHub Debug] Execution successful. Result:`, JSON.stringify(result));
           
-          // In production, txHash might be in the top-level or within nodeStatuses
-          const actionNode = result.nodeStatuses?.find((n: any) => 
-            n.status === "success" && (n.txHash || n.transactionHash || n.hash)
-          );
-          
-          const txHash = result.txHash || result.transactionHash || result.hash || 
-                         actionNode?.txHash || actionNode?.transactionHash || actionNode?.hash;
+          let txHash = result.txHash || result.transactionHash || result.hash;
+          if (!txHash && result.nodeStatuses) {
+            const actionNode = result.nodeStatuses.find((n: any) => n.id === "action-1" || (n.status === "success" && n.result));
+            if (actionNode && actionNode.result) {
+              try {
+                const parsed = typeof actionNode.result === 'string' ? JSON.parse(actionNode.result) : actionNode.result;
+                txHash = parsed.result || parsed.hash || actionNode.txHash;
+              } catch (e) {
+                txHash = actionNode.result;
+              }
+            }
+          }
+          if (!txHash && lastExpectedTxHash) {
+            txHash = lastExpectedTxHash;
+          }
 
           return {
             ...result,

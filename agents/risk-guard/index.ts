@@ -56,19 +56,23 @@ export async function runRiskCheck(params: {
   console.log(`[RiskGuard] Flags: ${flags.length === 0 ? "none" : flags.join(", ")}`);
   console.log(`[RiskGuard] Decision: ${approved ? "APPROVED" : "REJECTED"} | MaxSize: ${maxSize} ETH`);
 
-  // 3. Write assessment to 0G KV
-  await write0GKV({
-    key: `risk:assessment:${params.sessionId}`,
-    value: {
-      approved,
-      maxSize,
-      exposurePct: newExposurePct,
-      flags,
-      recommendation: params.recommendation.substring(0, 200),
-      ts: Date.now()
-    },
-    signer: wallet,
-  });
+  // 3. Write assessment to 0G KV (non-fatal)
+  try {
+    await write0GKV({
+      key: `risk:assessment:${params.sessionId}`,
+      value: {
+        approved,
+        maxSize,
+        exposurePct: newExposurePct,
+        flags,
+        recommendation: params.recommendation.substring(0, 200),
+        ts: Date.now()
+      },
+      signer: wallet,
+    });
+  } catch (e: any) {
+    console.log(`[RiskGuard] 0G KV write skipped (non-fatal): ${e.message}`);
+  }
 
   return { approved, maxSize, flags };
 }

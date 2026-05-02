@@ -83,7 +83,12 @@ export async function runDecentralizedInference(params: {
             return { response: content, providerAddress, model };
           } else {
             const errBody = await response.text();
-            console.warn(`[0G Compute] Provider ${providerAddress} (Model: ${model}) failed with ${response.status}: ${errBody}`);
+            console.warn(`[0G Compute] Provider ${providerAddress} (Model: ${model}) → HTTP ${response.status}: ${errBody.slice(0, 200)}`);
+            // If flagged for looping content, skip remaining models for this provider
+            if (errBody.includes('looping content')) {
+              console.warn(`[0G Compute] Provider ${providerAddress} flagged for looping — skipping remaining models.`);
+              break;
+            }
           }
         } catch (innerE: any) {
           console.warn(`[0G Compute] Model ${model} failed: ${innerE.message}`);

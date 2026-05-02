@@ -20,15 +20,21 @@ export async function recordDecision(params: {
   const agentIdHash = ethers.id(params.agentId);
   const decisionHash = ethers.id(params.payload + Date.now());
   
+  const nonce = await params.signer.getNonce("pending");
+  console.log(`[Attestation] Recording decision on-chain...`);
   const tx = await ledger.recordDecision(
     agentIdHash,
     decisionHash,
     params.confidence,
-    params.predictedDirection ?? 0
+    params.predictedDirection ?? 0,
+    { gasLimit: 200000, nonce }
   );
-  await tx.wait();
+  console.log(`[Attestation ✓] Transaction submitted: ${tx.hash}`);
+  console.log(`[Attestation] Waiting for confirmation on Base Sepolia...`);
+  await tx.wait(1);
+  console.log(`[Attestation ✓] Decision confirmed!`);
   
-  return decisionHash;
+  return { decisionHash, txHash: tx.hash };
 }
 
 export async function recordOutcome(params: {
@@ -47,10 +53,14 @@ export async function recordOutcome(params: {
   // PnL in basis points: +100bps on success (1%), -100bps on failure
   const pnlDeltaBps = params.success ? 100 : -100;
 
+  console.log(`[Attestation] Recording outcome on-chain...`);
   const tx = await ledger.recordOutcome(
     params.decisionHash,
     actualDirection,
-    pnlDeltaBps
+    pnlDeltaBps,
+    { gasLimit: 200000 }
   );
-  await tx.wait();
+  console.log(`[Attestation ✓] Outcome transaction submitted: ${tx.hash}`);
+  await tx.wait(1);
+  console.log(`[Attestation ✓] Outcome confirmed!`);
 }

@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "description": "Axiom-Fi Monorepo",
   "scripts": {
-    "agent": "npx ts-node --project frontend/agents/tsconfig.json frontend/agents/orchestrator/index.ts",
+    "agent": "npx ts-node --project agents/tsconfig.json agents/orchestrator/index.ts",
+    "bot": "npx ts-node --project agents/tsconfig.json agents/telegram/index.ts",
     "dev": "cd frontend && npm run dev",
     "install:all": "npm install && cd frontend && npm install && cd agents && npm install"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",
     "typescript": "^5.4.2"
+  },
+  "dependencies": {
+    "ethers": "^6.16.0"
   }
 }

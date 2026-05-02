@@ -67,7 +67,7 @@ export async function buildAndExecuteSwap(params: {
     quoteRequestId: quote.requestId,
     timestamp: Date.now(),
   });
-  const decisionHash = await recordDecision({
+  const { decisionHash } = await recordDecision({
     agentId: "executor-001",
     payload: decisionPayload,
     confidence: 95,

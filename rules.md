@@ -1,7 +1,7 @@
 # AXIOM RULES & CONSTRAINTS
 
 1. ❌ NO mocks, NO simulators, NO hardcoded responses.
-2. ✅ REAL Uniswap Trading API calls (v1).
+2. ✅ REAL Uniswap Trading API calls.
 3. ✅ REAL on-chain reputation logic (AgentRegistry & ReputationLedger).
 4. ✅ REAL x402 payment flow (micropayments per execution).
 5. ✅ REAL 0G Storage (Audit trails in Log Store, State in KV Store).
@@ -10,4 +10,4 @@
 8. ✅ VERIFIABLE outcomes (Attestations for every decision).
 
 
-if any mock , simulator, fallback , hardcoded etc  remove it i want the real implementation .
+if any mock , simulator, fallback , hardcoded,bypass etc  remove it i want the real implementation .

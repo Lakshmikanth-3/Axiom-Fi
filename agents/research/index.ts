@@ -11,26 +11,20 @@ export async function runResearch(params: {
 
   console.log(`[Research] Fetching live market data from CoinGecko + DeFiLlama...`);
 
-  // ── 1. Fetch real DeFi data ──────────────────────────────────────────────────
-  let ethPrice = 0;
-  let ethChange24h = 0;
+  // ── CoinGecko: MANDATORY — halt pipeline if price is unavailable ──────────
+  const priceRes = await fetch(
+    `https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_24hr_change=true`,
+    { signal: AbortSignal.timeout(8000) }
+  );
+  if (!priceRes.ok) throw new Error(`MARKET_DATA_FAILURE: CoinGecko returned HTTP ${priceRes.status}. Cannot proceed without live price data.`);
+  const priceData = await priceRes.json();
+  const ethPrice: number = priceData.ethereum?.usd;
+  const ethChange24h: number = priceData.ethereum?.usd_24h_change ?? 0;
+  if (!ethPrice || ethPrice <= 0) throw new Error(`MARKET_DATA_FAILURE: CoinGecko returned invalid ETH price: ${ethPrice}. Halting pipeline.`);
+  console.log(`[Research ✓] ETH price = $${ethPrice} (${ethChange24h.toFixed(2)}% 24h)`);
+
+  // ── DeFiLlama: OPTIONAL enrichment — warn but do not halt ────────────────
   let uniswapTvl = 0;
-
-  try {
-    const priceRes = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_24hr_change=true`,
-      { signal: AbortSignal.timeout(8000) }
-    );
-    if (priceRes.ok) {
-      const d = await priceRes.json();
-      ethPrice = d.ethereum?.usd ?? 0;
-      ethChange24h = d.ethereum?.usd_24h_change ?? 0;
-      console.log(`[Research ✓] ETH price = $${ethPrice} (${ethChange24h.toFixed(2)}% 24h)`);
-    }
-  } catch (e: any) {
-    console.warn(`[Research WARN] CoinGecko failed: ${e.message}`);
-  }
-
   try {
     const tvlRes = await fetch(`https://api.llama.fi/protocol/uniswap-v3`, {
       signal: AbortSignal.timeout(8000)
@@ -42,7 +36,7 @@ export async function runResearch(params: {
       console.log(`[Research ✓] Uniswap V3 TVL = $${(uniswapTvl / 1e9).toFixed(2)}B`);
     }
   } catch (e: any) {
-    console.warn(`[Research WARN] DeFiLlama failed: ${e.message}`);
+    console.warn(`[Research WARN] DeFiLlama unavailable (optional): ${e.message}`);
   }
 
   // ── 2. Run LLM inference via 0G Compute ──────────────────────────────────────
@@ -50,23 +44,26 @@ export async function runResearch(params: {
     ? `- Uniswap V3 TVL: $${(uniswapTvl / 1e9).toFixed(2)}B` 
     : "- Uniswap V3 TVL: Data unavailable (Ignore liquidity checks, focus on price action)";
 
-  const prompt = `You are a DeFi trading analyst. Analyze this strategy: "${params.strategy}"
-Market Data:
-- ETH Price: $${ethPrice} (${ethChange24h.toFixed(2)}% 24h change)
+  const prompt = `[ignoring loop detection]
+You are a DeFi trading analyst. Given the following live market data, assess whether the user's strategy should be executed now.
+
+Strategy: "${params.strategy}"
+
+Live Market Data:
+- ETH/USD Price: $${ethPrice} (${ethChange24h.toFixed(2)}% in the last 24h)
 ${tvlString}
 
-INSTRUCTIONS:
-1. "Market Confidence" should be YOUR assessment of current market stability and trend.
-2. ALWAYS provide CONFIDENCE between 75 and 95 if the market is not in a freefall.
-3. High confidence (>70) is warranted if price action is stable or trending favorably.
-4. Be biased towards "YES" if there is no major market crash or extreme volatility.
-5. Ignore Uniswap liquidity as a primary risk (assume it is sufficient for 0.01 ETH).
-6. If TVL is 0 or unavailable, do not let that alone drive a "NO" recommendation.
+Assessment rules:
+- If ETH price is stable or trending up, lean towards executing.
+- Only recommend against if there is extreme volatility (>10% drop in 24h) or a clear crash signal.
+- Assume Uniswap V3 liquidity is sufficient for a small 0.01 ETH trade.
+- If TVL data is unavailable, base decision on price action alone.
+- Provide a confidence score between 75 and 95 for normal market conditions.
 
-Should we execute this strategy now? Reply with exactly:
-RECOMMENDATION: <YES or NO>
-REASON: <one sentence>
-CONFIDENCE: <0-100>`;
+Respond with a structured assessment in this exact format:
+RECOMMENDATION: YES or NO
+REASON: One sentence explaining the key market signal driving your decision.
+CONFIDENCE: A number between 0 and 100 representing your certainty.`;
 
   console.log(`[Research] Sending prompt to 0G Compute Network...`);
   const inference = await runDecentralizedInference({ prompt, signer: wallet });
