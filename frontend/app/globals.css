@@ -1,276 +1,602 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-@import "tailwindcss";
-
+/* ── Design Tokens ─────────────────────────────────────────────────── */
 :root {
-  /* Backgrounds */
-  --bg-base:     #050810;
-  --bg-surface:  #080d1a;
-  --bg-elevated: #0d1425;
-
-  /* Borders */
-  --border:        #1a2440;
-  --border-accent: #1e3a6e;
-
-  /* Blue scale */
-  --blue-primary: #2563eb;
-  --blue-bright:  #3b82f6;
-  --blue-glow:    #60a5fa;
-  --blue-dim:     #1d4ed8;
-
-  /* Text */
-  --text-primary:   #f0f4ff;
-  --text-secondary: #8ba3cc;
-  --text-muted:     #4a6088;
-  --text-mono:      #7dd3fc;
-
-  /* Status */
-  --green: #22c55e;
-  --red:   #ef4444;
-  --amber: #f59e0b;
-
-  /* Pipeline step states */
-  --step-pending: #1a2440;
-  --step-running: #2563eb;
-  --step-done:    #22c55e;
-  --step-failed:  #ef4444;
+  --bg: #F5F4F0;
+  --bg-card: #FFFFFF;
+  --bg-card-alt: #faf9f7;
+  --fg: #111111;
+  --fg-2: rgba(17, 17, 17, 0.55);
+  --fg-3: rgba(17, 17, 17, 0.35);
+  --fg-4: rgba(17, 17, 17, 0.20);
+  --border: rgba(0, 0, 0, 0.07);
+  --border-md: rgba(0, 0, 0, 0.12);
+  --border-hi: rgba(0, 0, 0, 0.22);
+  --accent: #111111;
+  --accent-fg: #FFFFFF;
+  --green: #16a34a;
+  --red: #dc2626;
+  --amber: #d97706;
+  --blue: #2563eb;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
 }
 
-*, *::before, *::after {
+/* ── Reset ─────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+}
 
 body {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-family: 'Space Grotesk', sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   overflow-x: hidden;
 }
 
-/* ── Scrollbar ────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--bg-surface); }
-::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--blue-primary); }
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
 
-/* ── Keyframes ────────────────────────────────────────────────────── */
-@keyframes meshShift {
-  0%   { background-position: 20% 40%, 80% 60%, center; }
-  100% { background-position: 35% 55%, 65% 45%, center; }
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-md);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hi);
+}
+
+/* ── Typography ────────────────────────────────────────────────────── */
+h1,
+h2,
+h3,
+h4,
+h5 {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes feedIn {
-  from { opacity: 0; transform: translateX(6px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes wordReveal {
+  0% {
+    opacity: 0;
+    filter: blur(20px);
+    transform: translateY(20px);
+  }
+
+  60% {
+    filter: blur(2px);
+    opacity: 0.85;
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes marqueeLeft {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-33.333%);
+  }
+}
+
+@keyframes marqueeRight {
+  from {
+    transform: translateX(-33.333%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulseDot {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.75);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(200%);
+  }
 }
 
 @keyframes spinSlow {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-}
-
-@keyframes axiomGlow {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(96,165,250,0.3), 0 0 16px rgba(96,165,250,0.1); }
-  50%       { box-shadow: 0 0 0 1px rgba(96,165,250,0.7), 0 0 30px rgba(96,165,250,0.25); }
-}
-
-/* Pipeline connector dash animation */
-@keyframes dashFlow {
-  from { stroke-dashoffset: 24; }
-  to   { stroke-dashoffset: 0; }
-}
-
-/* Node active ring pulse */
-@keyframes nodePulse {
-  0%, 100% { box-shadow: 0 0 0 0px rgba(37,99,235,0.6); }
-  50%       { box-shadow: 0 0 0 6px rgba(37,99,235,0); }
-}
-
-/* Step row highlight sweep */
 @keyframes stepRunning {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
 }
 
-@keyframes paymentFlash {
-  0%   { color: var(--text-muted); }
-  40%  { color: var(--green); }
-  100% { color: var(--text-secondary); }
+/* ── Nav ───────────────────────────────────────────────────────────── */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  height: 64px;
+  background: rgba(245, 244, 240, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
 }
 
-/* ── Utility ──────────────────────────────────────────────────────── */
-.animate-feed-in    { animation: feedIn 0.25s ease-out forwards; }
-.animate-fade-up    { animation: fadeUp 0.4s ease-out forwards; }
-.animate-dash-flow  { animation: dashFlow 0.6s linear infinite; }
-.animate-node-pulse { animation: nodePulse 1.5s ease-in-out infinite; }
-.animate-payment    { animation: paymentFlash 1.2s ease-out forwards; }
-
-/* ── Glass ────────────────────────────────────────────────────────── */
-.glass {
-  background: rgba(8,13,26,0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(30,58,110,0.5);
+.nav-logo {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg);
+  text-decoration: none;
 }
 
-/* ── Card surfaces ────────────────────────────────────────────────── */
-.card {
-  background: var(--bg-surface);
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.nav-link {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--fg-2);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: var(--fg);
+}
+
+.nav-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  transition: background 0.2s, opacity 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.nav-cta:hover {
+  opacity: 0.8;
+}
+
+/* ── Bento Cards ───────────────────────────────────────────────────── */
+.bento {
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: border-color 0.25s, background 0.25s;
 }
 
-.card-elevated {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+.bento:hover {
+  border-color: var(--border-md);
+  background: #fafaf8;
 }
 
-/* ── Buttons ──────────────────────────────────────────────────────── */
-.btn-primary {
+/* ── Tag pills ─────────────────────────────────────────────────────── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+/* ── Section ───────────────────────────────────────────────────────── */
+.section {
+  padding: 96px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-border {
+  border-top: 1px solid var(--border);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────── */
+.btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: var(--blue-primary);
-  color: var(--text-primary);
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 600;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
   border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-.btn-primary:hover {
-  background: var(--blue-bright);
-  box-shadow: 0 0 20px rgba(37,99,235,0.4);
-}
-
-.btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.875rem;
-  font-weight: 500;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease;
-}
-.btn-ghost:hover {
-  border-color: var(--border-accent);
-  color: var(--text-primary);
-}
-
-/* ── Divider ──────────────────────────────────────────────────────── */
-.divider {
-  height: 1px;
-  background: rgba(30,58,110,0.6);
-}
-
-/* ── Label caps ───────────────────────────────────────────────────── */
-.label-caps {
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* ── Tx hash links ────────────────────────────────────────────────── */
-.tx-link {
-  font-family: 'Space Mono', monospace;
-  font-size: 0.75rem;
-  color: var(--text-mono);
   text-decoration: none;
-  transition: color 0.15s ease, text-shadow 0.15s ease;
+  letter-spacing: 0.02em;
 }
+
+.btn-dark {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.btn-dark:hover {
+  opacity: 0.8;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--fg-2);
+  border: 1px solid var(--border-md);
+}
+
+.btn-outline:hover {
+  border-color: var(--border-hi);
+  color: var(--fg);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* ── Tx hash links ─────────────────────────────────────────────────── */
+.tx-link {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--blue);
+  text-decoration: none;
+  transition: opacity 0.15s;
+  word-break: break-all;
+}
+
 .tx-link:hover {
-  color: var(--blue-glow);
-  text-shadow: 0 0 8px rgba(96,165,250,0.5);
+  opacity: 0.7;
+  text-decoration: underline;
 }
 
-/* ── Pipeline step rows ───────────────────────────────────────────── */
-.step-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  transition: border-color 0.3s ease, background 0.3s ease;
-}
-
-.step-row.pending  { border-color: var(--border); }
-.step-row.running  { border-color: rgba(37,99,235,0.6); background: rgba(37,99,235,0.05); }
-.step-row.done     { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.04); }
-.step-row.failed   { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.04); }
-
-/* ── Phase separator ──────────────────────────────────────────────── */
-.phase-label {
-  font-family: 'Space Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(5,8,16,0.6);
-}
-
-/* ── Analysis metric value ────────────────────────────────────────── */
-.metric-value {
-  font-family: 'Space Mono', monospace;
-  font-size: 0.875rem;
-  color: var(--text-mono);
-  font-weight: 700;
-}
-
-.metric-label {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  margin-bottom: 2px;
-}
-
-/* ── Status dot ───────────────────────────────────────────────────── */
+/* ── Status ────────────────────────────────────────────────────────── */
 .status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.status-dot.pending { background: var(--text-muted); }
-.status-dot.running { background: var(--blue-glow); animation: nodePulse 1.2s ease-in-out infinite; box-shadow: 0 0 8px var(--blue-glow); }
-.status-dot.done    { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
-.status-dot.failed  { background: var(--red); box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+
+.status-dot.live {
+  background: var(--green);
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+.status-dot.pending {
+  background: var(--fg-3);
+}
+
+.status-dot.running {
+  background: var(--blue);
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+.status-dot.done {
+  background: var(--green);
+}
+
+.status-dot.failed {
+  background: var(--red);
+}
+
+/* ── Glass panels ──────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-lg);
+}
+
+/* ── Form inputs ───────────────────────────────────────────────────── */
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+  border-color: var(--fg);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+.form-input::placeholder {
+  color: var(--fg-3);
+}
+
+.form-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--fg-2);
+  letter-spacing: 0.02em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* ── Output Feed phase colors ──────────────────────────────────────── */
+.feed-research {
+  color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.feed-risk {
+  color: var(--amber);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.feed-executor {
+  color: var(--green);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.feed-pay {
+  color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.feed-default {
+  color: var(--fg-2);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.feed-error {
+  color: var(--red);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: white;
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.step-row.running {
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.step-row.done {
+  border-color: rgba(22, 163, 74, 0.35);
+  background: rgba(22, 163, 74, 0.03);
+}
+
+.step-row.failed {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.03);
+}
+
+.mono-text {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg-2);
+}
+
+/* ── Wizard ────────────────────────────────────────────────────────── */
+.wizard-container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 100px 24px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.wizard-panel {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeUp 0.35s ease-out forwards;
+}
+
+/* ── Audit log rows ────────────────────────────────────────────────── */
+.audit-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border);
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.audit-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ── Marquee ───────────────────────────────────────────────────────── */
+.marquee-left {
+  animation: marqueeLeft 28s linear infinite;
+}
+
+.marquee-right {
+  animation: marqueeRight 22s linear infinite;
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────── */
+.animate-fade-up {
+  animation: fadeUp 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-feed-in {
+  animation: feedIn 0.25s ease-out forwards;
+}
+
+.animate-spin-slow {
+  animation: spinSlow 3s linear infinite;
+}
+
+@keyframes pulseDot {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.75);
+  }
+}
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .nav {
+    padding: 0 20px;
+  }
+
+  .section {
+    padding: 64px 20px;
+  }
+
+  .nav-links {
+    display: none;
+  }
+}

@@ -17,15 +17,15 @@ interface AgentAnalysisCardProps {
 }
 
 const STATUS_COLORS = {
-  done:    'var(--green)',
-  failed:  'var(--red)',
+  done: 'var(--green)',
+  failed: 'var(--red)',
   running: 'var(--blue-glow)',
   pending: 'var(--text-muted)',
 }
 
 const STATUS_LABELS = {
-  done:    '✓ DONE',
-  failed:  '✗ FAILED',
+  done: '✓ DONE',
+  failed: '✗ FAILED',
   running: '◌ RUNNING',
   pending: '— PENDING',
 }

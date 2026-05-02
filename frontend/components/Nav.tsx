@@ -3,11 +3,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV_LINKS = [
-  { href: '/terminal',    label: 'Terminal' },
-  { href: '/agents',      label: 'Marketplace' },
-  { href: '/portfolio',   label: 'Portfolio' },
-  { href: '/analysis',    label: 'Analysis' },
-  { href: '/verify',      label: 'Verify' },
+  { href: '/terminal',  label: 'Terminal' },
+  { href: '/agents',    label: 'Marketplace' },
+  { href: '/portfolio', label: 'Portfolio' },
+  { href: '/analysis',  label: 'Analysis' },
+  { href: '/verify',    label: 'Verify' },
+  { href: '/onboard',   label: 'Onboard Agent' },
 ]
 
 export default function Nav() {

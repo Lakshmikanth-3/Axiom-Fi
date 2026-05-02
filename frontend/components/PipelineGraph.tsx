@@ -22,22 +22,22 @@ interface PipelineGraphProps {
 const STATUS_BG: Record<string, string> = {
   pending: 'rgba(26,36,64,0.6)',
   running: 'rgba(37,99,235,0.15)',
-  done:    'rgba(34,197,94,0.1)',
-  failed:  'rgba(239,68,68,0.1)',
+  done: 'rgba(34,197,94,0.1)',
+  failed: 'rgba(239,68,68,0.1)',
 }
 
 const STATUS_BORDER: Record<string, string> = {
   pending: 'rgba(26,36,64,0.8)',
   running: 'rgba(37,99,235,0.6)',
-  done:    'rgba(34,197,94,0.5)',
-  failed:  'rgba(239,68,68,0.5)',
+  done: 'rgba(34,197,94,0.5)',
+  failed: 'rgba(239,68,68,0.5)',
 }
 
 const STATUS_ICON: Record<string, string> = {
   pending: '○',
   running: '◌',
-  done:    '✓',
-  failed:  '✗',
+  done: '✓',
+  failed: '✗',
 }
 
 export default function PipelineGraph({ nodes, edges }: PipelineGraphProps) {
@@ -65,8 +65,8 @@ export default function PipelineGraph({ nodes, edges }: PipelineGraphProps) {
             boxShadow: node.status === 'running'
               ? '0 0 20px rgba(37,99,235,0.2)'
               : node.status === 'done'
-              ? '0 0 12px rgba(34,197,94,0.1)'
-              : 'none',
+                ? '0 0 12px rgba(34,197,94,0.1)'
+                : 'none',
           }}>
             {/* Status icon */}
             <div style={{
