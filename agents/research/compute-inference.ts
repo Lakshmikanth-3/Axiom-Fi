@@ -24,6 +24,9 @@ export async function runDecentralizedInference(params: {
   }
   console.error = feeInterceptor(_origError) as any
   if (console.debug) console.debug = feeInterceptor(_origDebug!) as any
+  // Also intercept console.log — 0G broker logs cachedFee warning via log too
+  const _origLog = console.log.bind(console)
+  console.log = feeInterceptor(_origLog) as any
 
   try {
   // 1. Initialize the broker connected to 0G EVM
@@ -43,13 +46,20 @@ export async function runDecentralizedInference(params: {
     throw new Error("0G_NETWORK_ERROR: No active LLM providers found in the 0G Compute registry.");
   }
 
-  // 3. Initialize Ledger (ONLY ONCE if needed) to save gas
-  try { 
-    console.log(`[0G Compute] Checking Ledger status...`);
-    await broker.ledger.addLedger(1); 
-    await broker.ledger.depositFund(1); 
+  // 3. Initialize Ledger — check existence FIRST to avoid out-of-gas revert on 0G chain
+  _origLog(`[0G Compute] Checking Ledger status...`);
+  try {
+    const ledgerInfo = await broker.ledger.getLedger().catch(() => null);
+    if (!ledgerInfo) {
+      _origLog(`[0G Compute] Creating new ledger...`);
+      await broker.ledger.addLedger(1);
+      await broker.ledger.depositFund(1);
+      _origLog(`[0G Compute] Ledger created and funded.`);
+    } else {
+      _origLog(`[0G Compute] Ledger already exists — skipping creation.`);
+    }
   } catch (e: any) {
-    // Skip if already exists to avoid wasting gas
+    _origLog(`[0G Compute] Ledger init warning (non-fatal): ${e.message}`);
   }
 
   // 4. Try more providers to increase success rate (up to 10)
@@ -123,6 +133,7 @@ export async function runDecentralizedInference(params: {
   } finally {
     // Always restore original console methods
     console.error = _origError as any
+    console.log   = _origLog   as any
     if (_origDebug) console.debug = _origDebug as any
   }
 }
