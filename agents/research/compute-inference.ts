@@ -9,6 +9,23 @@ export async function runDecentralizedInference(params: {
   prompt: string;
   signer: ethers.Signer;
 }): Promise<{ response: string; providerAddress: string; model: string }> {
+  // 0. Intercept the 0G broker's internal cachedFee fallback — if the broker
+  //    cannot fetch the real unsettled fee it logs a [DEBUG] warning and silently
+  //    continues with stale data. We enforce strict no-fallback: throw instead.
+  const _origError = console.error.bind(console)
+  const _origDebug = console.debug?.bind(console)
+  const feeInterceptor = (method: (...args: any[]) => void) => (...args: any[]) => {
+    const msg = args.join(' ')
+    if (msg.includes('cachedFee fallback') || msg.includes('Failed to fetch unsettled fee')) {
+      method(...args) // still log so it's visible
+      throw new Error('0G_REAL_FEE_REQUIRED: 0G broker could not fetch live unsettled fee. No fallback allowed.')
+    }
+    method(...args)
+  }
+  console.error = feeInterceptor(_origError) as any
+  if (console.debug) console.debug = feeInterceptor(_origDebug!) as any
+
+  try {
   // 1. Initialize the broker connected to 0G EVM
   const ogProvider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!);
   const ogSigner = (params.signer as ethers.Wallet).connect(ogProvider);
@@ -100,6 +117,12 @@ export async function runDecentralizedInference(params: {
     }
   } // end providers loop
 
-  // 4. Final Error if all providers fail
+  // Final Error if all providers fail
   throw new Error("0G_NETWORK_UNAVAILABLE: All discovered 0G Compute providers failed or returned unsupported endpoints.");
+
+  } finally {
+    // Always restore original console methods
+    console.error = _origError as any
+    if (_origDebug) console.debug = _origDebug as any
+  }
 }
