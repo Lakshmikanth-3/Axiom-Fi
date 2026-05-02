@@ -28,16 +28,31 @@ export async function POST(req: NextRequest) {
             line.includes('Risk') || line.includes('risk') ? 'risk-guard' :
             line.includes('Executor') || line.includes('executor') ? 'executor' :
             line.includes('x402') || line.includes('Paying') ? 'payment' :
-            line.includes('Attestation') || line.includes('txHash') || line.includes('Tx:') ? 'attestation' :
+            line.includes('Attestation') || line.includes('Tx:') ? 'attestation' :
             'orchestrator'
 
-          const txMatch = line.match(/0x[a-fA-F0-9]{64}/)
+          // ── CRITICAL: only extract hashes for their correct explorer ──────
+          // BaseScan tx: ONLY from lines that explicitly say sepolia.basescan.org
+          const baseScanMatch = line.match(/sepolia\.basescan\.org\/tx\/(0x[a-fA-F0-9]{64})/)
+          const txHash = baseScanMatch?.[1]  // undefined for all other log lines
+
+          // 0G chain tx: ONLY from chainscan-galileo.0g.ai URLs
+          const ogMatch = line.match(/chainscan-galileo\.0g\.ai\/tx\/(0x[a-fA-F0-9]{64})/)
+          const ogTxHash = ogMatch?.[1]
+
+          // KeeperHub workflow ID
+          const khMatch = line.match(/keeperhub\.com\/hub\/workflows\/([a-zA-Z0-9_-]+)/)
+          const keeperHubId = khMatch?.[1]
 
           send({
             type: 'log',
             tag,
-            message: line.replace(/\[.*?\]\s*/, '').trim(),
-            txHash: txMatch?.[0],
+            message: line,
+            // These are undefined for most log lines — only set when the line
+            // contains the explicit explorer URL for that specific tx type
+            txHash,
+            ogTxHash,
+            keeperHubId,
           })
         })
 

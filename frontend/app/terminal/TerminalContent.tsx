@@ -164,21 +164,14 @@ export default function TerminalPage() {
                 }
               }
 
-              // ── Link extraction (exact URL patterns from executor logs) ─────
-              // BaseScan: "[BaseScan ✓] Verified on Base Sepolia: https://sepolia.basescan.org/tx/0x..."
-              let extractedTxHash: string | undefined = event.txHash
-              const baseScanMatch = msg.match(/sepolia\.basescan\.org\/tx\/(0x[a-fA-F0-9]{64})/)
-              if (baseScanMatch) extractedTxHash = baseScanMatch[1]
-
-              // 0G Storage: "[0G KV ✓] State sync confirmed: https://chainscan-galileo.0g.ai/tx/0x..."
-              let ogTxHash: string | undefined
-              const ogMatch = msg.match(/chainscan-galileo\.0g\.ai\/tx\/(0x[a-fA-F0-9]{64})/)
-              if (ogMatch) ogTxHash = ogMatch[1]
-
-              // KeeperHub: "[KeeperHub ✓] Workflow: https://app.keeperhub.com/hub/workflows/wf-..."
-              let keeperHubId: string | undefined
-              const khMatch = msg.match(/keeperhub\.com\/hub\/workflows\/([a-zA-Z0-9_-]+)/)
-              if (khMatch) keeperHubId = khMatch[1]
+              // ── Link extraction: stream route now sends pre-parsed, type-safe fields ──
+              // txHash   = only from sepolia.basescan.org URLs  (swap tx on Base Sepolia)
+              // ogTxHash = only from chainscan-galileo.0g.ai URLs (0G storage txs)
+              // keeperHubId = only from keeperhub.com workflow URLs
+              // NEVER show a random 0x hash from attestation/debug logs as a BaseScan link
+              const extractedTxHash: string | undefined = event.txHash     // set only by [BaseScan ✓] lines
+              const ogTxHash: string | undefined = event.ogTxHash           // set only by [0G KV ✓] lines
+              const keeperHubId: string | undefined = event.keeperHubId    // set only by [KeeperHub ✓] lines
 
               // Store session data — only pick ETH price from Research log line
               const stored = JSON.parse(sessionStorage.getItem('axiom-session') ?? '{}')
