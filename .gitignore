@@ -16,3 +16,5 @@ scripts/*.cjs
 .foundry
 lib
 EOF
+.vercel
+.env*.local
