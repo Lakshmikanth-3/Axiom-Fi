@@ -15,8 +15,6 @@ scripts/*.cjs
 .next
 .foundry
 lib
-EOF
 .vercel
 .env*.local
 .axiom-state.json
-**/.axiom-state.json
