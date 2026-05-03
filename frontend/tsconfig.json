@@ -20,13 +20,14 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@/agents/*": ["../agents/*"]
+      "@/agents/*": ["./agents/*"]
     }
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "agents/**/*.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
