@@ -7,10 +7,6 @@
  * All on-chain reads use live Base Sepolia RPC. All pipeline calls use the real orchestrator.
  */
 
-import dotenv from 'dotenv'
-import path from 'path'
-dotenv.config({ path: path.resolve(process.cwd(), '.env') })
-
 import { Bot, InlineKeyboard, Context } from 'grammy'
 import { ethers } from 'ethers'
 import { main as runOrchestrator } from '../orchestrator/index'

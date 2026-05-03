@@ -2,7 +2,7 @@
 // Uses 0G Compute Network for verifiable LLM inference
 // Documentation: https://github.com/0gfoundation/0g-serving-broker
 
-import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
+import { createZGComputeNetworkBroker } from "@0gfoundation/0g-compute-ts-sdk";
 import { ethers } from "ethers";
 
 export async function runDecentralizedInference(params: {

@@ -1,9 +1,4 @@
 import { ethers } from "ethers";
-import dotenv from "dotenv";
-import path from "path";
-
-// Load env from root
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 async function seedReputation() {
     if (!process.env.RPC_URL || !process.env.DEPLOYER_PRIVATE_KEY || !process.env.REPUTATION_LEDGER_ADDRESS) {

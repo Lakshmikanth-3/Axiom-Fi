@@ -1,7 +1,7 @@
 // Pure 0G Infrastructure Client
 // Hard-timeout fix: suppresses SDK storage-sync noise, captures tx hash at submission time.
 
-import { Indexer, KvClient, Batcher, getFlowContract } from "@0gfoundation/0g-ts-sdk";
+import { Indexer, KvClient, Batcher, getFlowContract } from "@0gfoundation/0g-storage-ts-sdk";
 import { ethers } from "ethers";
 
 const AXIOM_STREAM_ID = ethers.keccak256(ethers.toUtf8Bytes(process.env.OG_STREAM_ID ?? "axiom-default-stream"));

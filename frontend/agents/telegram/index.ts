@@ -5,10 +5,6 @@
  *       (updates are delivered by the Next.js /api/telegram/webhook route)
  */
 
-import dotenv from 'dotenv'
-import path from 'path'
-dotenv.config({ path: path.resolve(process.cwd(), '.env') })
-
 import { bot } from './bot'
 
 async function main() {

@@ -1,9 +1,3 @@
-import dotenv from "dotenv";
-import path from "path";
-if (!process.env.RPC_URL) {
-  dotenv.config({ path: path.resolve(process.cwd(), ".env") });
-}
-
 import { selectBestAgent } from "./selector";
 import { runResearch } from "../research/index";
 import { runRiskCheck } from "../risk-guard/index";
