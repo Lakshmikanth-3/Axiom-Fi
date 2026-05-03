@@ -66,7 +66,7 @@ export async function registerSwapWorkflow(
     data: step.params.data,
     value: step.params.value || "0",
     gasLimit: step.params.gasLimit || 500000,
-    chainId: parseInt(process.env.SWAP_CHAIN_ID ?? "") || (() => { throw new Error("MISSING_VALUE: SWAP_CHAIN_ID not set in .env"); })(),
+    chainId: parseInt(process.env.TX_CHAIN_ID ?? "") || (() => { throw new Error("MISSING_VALUE: TX_CHAIN_ID not set in .env (Base Sepolia = 84532)"); })(),
     nonce: await wallet.getNonce("pending")
   };
 
