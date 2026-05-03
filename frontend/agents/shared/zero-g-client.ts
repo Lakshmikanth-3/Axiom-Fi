@@ -104,6 +104,20 @@ export async function write0GKV(params: {
   const ogSigner = connectToOg(params.signer);
   const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, ogSigner as any);
 
+  // MANUALLY OVERRIDE GAS: The 0G SDK estimation often fails on Galileo. 
+  // We wrap the submit method to force a safe gas limit (1M).
+  const originalSubmit = flowContract.submit;
+  flowContract.submit = (async (...args: any[]) => {
+    const overrides = { gasLimit: 1_000_000 };
+    // The SDK calls flow.submit(submissionStruct, overrides)
+    if (args.length === 1) {
+      return originalSubmit.apply(flowContract, [args[0], overrides]);
+    } else {
+      args[args.length - 1] = { ...args[args.length - 1], ...overrides };
+      return originalSubmit.apply(flowContract, args);
+    }
+  }) as any;
+
   const batcher = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
   const keyBytes = Uint8Array.from(Buffer.from(params.key, "utf-8"));
   const valueBytes = Uint8Array.from(Buffer.from(JSON.stringify(params.value), "utf-8"));
@@ -189,6 +203,18 @@ export async function write0GLog(params: {
     : new ethers.Wallet(process.env.OG_PRIVATE_KEY!).connect(new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!));
 
   const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, ogSigner as any);
+
+  // MANUALLY OVERRIDE GAS
+  const originalSubmit = flowContract.submit;
+  flowContract.submit = (async (...args: any[]) => {
+    const overrides = { gasLimit: 1_000_000 };
+    if (args.length === 1) {
+      return originalSubmit.apply(flowContract, [args[0], overrides]);
+    } else {
+      args[args.length - 1] = { ...args[args.length - 1], ...overrides };
+      return originalSubmit.apply(flowContract, args);
+    }
+  }) as any;
 
   const batcher = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
   const keyBytes = Uint8Array.from(Buffer.from(key, "utf-8"));
