@@ -13,7 +13,9 @@ import * as fs   from "fs";
 import * as path from "path";
 
 const AXIOM_STREAM_ID = ethers.keccak256(ethers.toUtf8Bytes(process.env.OG_STREAM_ID ?? "axiom-default-stream"));
-const SYNC_TIMEOUT_MS = 15_000;
+// 45s: 0G Galileo testnet EVM RPC is slow — ethers.js auto-detects chain on every new provider
+// (1x eth_chainId call), which consumes time before the tx is even submitted.
+const SYNC_TIMEOUT_MS = 45_000;
 
 // ─── Local State Replica ─────────────────────────────────────────────────────
 // The Galileo testnet does not expose public KV nodes (port 6789 is unreachable).
@@ -208,11 +210,18 @@ async function execBatcherWithTimeout(
 }
 
 // ─── Helper: master signer for 0G EVM with gas overrides baked in ─────────────
+// Cached as module singletons — ethers.js auto-detects network (eth_chainId) on every
+// new JsonRpcProvider, which on the slow 0G testnet adds 5-10s before the first tx.
+// By caching we pay this cost once at startup, not on every write0GKV/write0GLog call.
+let _ogProvider: ethers.JsonRpcProvider | null = null;
+let _ogSigner:   GasOverrideWallet      | null = null;
+
 function getOgMasterSigner(): GasOverrideWallet {
   if (!process.env.DEPLOYER_PRIVATE_KEY) throw new Error("0G_CONFIG_ERROR: DEPLOYER_PRIVATE_KEY not set");
   if (!process.env.OG_EVM_RPC)           throw new Error("0G_CONFIG_ERROR: OG_EVM_RPC not set");
-  const provider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC);
-  return new GasOverrideWallet(process.env.DEPLOYER_PRIVATE_KEY, provider);
+  if (!_ogProvider) _ogProvider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC);
+  if (!_ogSigner)   _ogSigner   = new GasOverrideWallet(process.env.DEPLOYER_PRIVATE_KEY, _ogProvider);
+  return _ogSigner;
 }
 
 // ─── 0G KV Store Write ────────────────────────────────────────────────────────
