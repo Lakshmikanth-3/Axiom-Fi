@@ -116,14 +116,17 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   });
   log(`[Orchestrator] x402 payment header created: ${JSON.stringify(execPayment.header).substring(0, 80)}...`);
 
-  // NOTE: Uniswap Trading API only serves mainnets.
-  // chainId 8453 = Base Mainnet for quote/swap calldata.
-  // The RPC_URL in .env (Base Sepolia) is used only for attestation signing, not the swap itself.
+  // Trade params from .env — no hardcoded addresses or amounts (rules.md)
+  const tokenIn  = process.env.SWAP_TOKEN_IN  ?? (() => { throw new Error("0G_CONFIG_ERROR: SWAP_TOKEN_IN not set in .env"); })();
+  const tokenOut = process.env.SWAP_TOKEN_OUT ?? (() => { throw new Error("0G_CONFIG_ERROR: SWAP_TOKEN_OUT not set in .env"); })();
+  const amountIn = process.env.SWAP_AMOUNT_IN ?? (() => { throw new Error("0G_CONFIG_ERROR: SWAP_AMOUNT_IN not set in .env"); })();
+  const chainId  = parseInt(process.env.SWAP_CHAIN_ID ?? "0") || (() => { throw new Error("0G_CONFIG_ERROR: SWAP_CHAIN_ID not set in .env"); })();
+
   const tradeResult = await executeTradeViaKeeperHub({
-    tokenIn:  "0x4200000000000000000000000000000000000006",
-    tokenOut: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    amountIn: ethers.parseEther("0.01").toString(),
-    chainId:  8453,
+    tokenIn,
+    tokenOut,
+    amountIn: ethers.parseEther(amountIn).toString(),
+    chainId,
     onLog:    (msg) => log(msg),
     confidence: researchResult.confidence,
   });
