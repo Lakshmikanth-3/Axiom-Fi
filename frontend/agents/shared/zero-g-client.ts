@@ -207,11 +207,26 @@ async function execBatcherWithTimeout(
 }
 
 // ─── Helper: master signer for 0G EVM with gas overrides baked in ─────────────
+// Module-level singletons — ethers creates a new JsonRpcProvider (+ eth_chainId probe) on
+// every instantiation. On 0G Galileo (slow testnet), that probe uses the default ~10s HTTP
+// timeout which fires before SYNC_TIMEOUT_MS. Fix: FetchRequest 90s + staticNetwork(16602).
+let _ogProvider: ethers.JsonRpcProvider | null = null;
+let _ogSigner:   GasOverrideWallet      | null = null;
+
 function getOgMasterSigner(): GasOverrideWallet {
   if (!process.env.DEPLOYER_PRIVATE_KEY) throw new Error("0G_CONFIG_ERROR: DEPLOYER_PRIVATE_KEY not set");
-  if (!process.env.OG_EVM_RPC) throw new Error("0G_CONFIG_ERROR: OG_EVM_RPC not set");
-  const provider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC);
-  return new GasOverrideWallet(process.env.DEPLOYER_PRIVATE_KEY, provider);
+  if (!process.env.OG_EVM_RPC)           throw new Error("0G_CONFIG_ERROR: OG_EVM_RPC not set");
+  if (!_ogProvider) {
+    const fetchReq = new ethers.FetchRequest(process.env.OG_EVM_RPC);
+    fetchReq.timeout = 90_000; // 90s — default ~10s fires before SYNC_TIMEOUT_MS
+    _ogProvider = new ethers.JsonRpcProvider(
+      fetchReq,
+      ethers.Network.from(16602), // 0G Galileo — skip eth_chainId probe entirely
+      { staticNetwork: true }
+    );
+  }
+  if (!_ogSigner) _ogSigner = new GasOverrideWallet(process.env.DEPLOYER_PRIVATE_KEY, _ogProvider);
+  return _ogSigner;
 }
 
 // ─── 0G KV Store Write ────────────────────────────────────────────────────────
