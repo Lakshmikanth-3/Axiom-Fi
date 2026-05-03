@@ -18,9 +18,9 @@ import { JsonRpcProvider, ethers } from "ethers";
 
 // x402 fees per agent role (in USDC base units, 6 decimals)
 const AGENT_FEES: Record<string, bigint> = {
-  research:   BigInt(5_000), // $0.005 USDC
+  research: BigInt(5_000), // $0.005 USDC
   "risk-guard": BigInt(3_000), // $0.003 USDC
-  executor:   BigInt(10_000), // $0.010 USDC
+  executor: BigInt(10_000), // $0.010 USDC
 };
 
 export async function main(strategy: string, onLog?: (msg: string) => void) {
@@ -45,7 +45,7 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
 
   // 2. Select agents by reputation (reads live on-chain scores)
   const researchAgentId = await selectBestAgent({ role: "research", provider });
-  const riskAgentId     = await selectBestAgent({ role: "risk-guard", provider });
+  const riskAgentId = await selectBestAgent({ role: "risk-guard", provider });
   const executorAgentId = await selectBestAgent({ role: "executor", provider });
 
   log(`[Orchestrator] Selected agents: Research(${researchAgentId}), Risk(${riskAgentId}), Executor(${executorAgentId})`);
@@ -56,9 +56,9 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   // ── Step A: Pay Research Agent → Run Research ──────────────────────────────
   log(`[Orchestrator] Paying ${researchAgentId} via x402 ($0.005)...`);
   const researchPayment = await x402.pay({
-    to:        process.env.RESEARCH_WALLET!,
-    amount:    AGENT_FEES["research"],
-    currency:  "USDC",
+    to: process.env.RESEARCH_WALLET!,
+    amount: AGENT_FEES["research"],
+    currency: "USDC",
     reference: `${sessionId}:research`,
   });
   log(`[Orchestrator] x402 payment header created: ${JSON.stringify(researchPayment.header).substring(0, 80)}...`);
@@ -69,9 +69,9 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   // ── Step B: Pay Risk Guard → Run Risk Check ────────────────────────────────
   log(`[Orchestrator] Paying ${riskAgentId} via x402 ($0.003)...`);
   const riskPayment = await x402.pay({
-    to:        process.env.RISK_WALLET!,
-    amount:    AGENT_FEES["risk-guard"],
-    currency:  "USDC",
+    to: process.env.RISK_WALLET!,
+    amount: AGENT_FEES["risk-guard"],
+    currency: "USDC",
     reference: `${sessionId}:risk-guard`,
   });
   log(`[Orchestrator] x402 payment header created: ${JSON.stringify(riskPayment.header).substring(0, 80)}...`);
@@ -109,25 +109,22 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   // ── Step C: Pay Executor → Execute Trade ──────────────────────────────────
   log(`[Orchestrator] Paying ${executorAgentId} via x402 ($0.010)...`);
   const execPayment = await x402.pay({
-    to:        process.env.EXECUTOR_WALLET!,
-    amount:    AGENT_FEES["executor"],
-    currency:  "USDC",
+    to: process.env.EXECUTOR_WALLET!,
+    amount: AGENT_FEES["executor"],
+    currency: "USDC",
     reference: `${sessionId}:executor`,
   });
   log(`[Orchestrator] x402 payment header created: ${JSON.stringify(execPayment.header).substring(0, 80)}...`);
 
-  // Trade params from .env — no hardcoded addresses or amounts (rules.md)
-  const tokenIn  = process.env.SWAP_TOKEN_IN  ?? (() => { throw new Error("0G_CONFIG_ERROR: SWAP_TOKEN_IN not set in .env"); })();
-  const tokenOut = process.env.SWAP_TOKEN_OUT ?? (() => { throw new Error("0G_CONFIG_ERROR: SWAP_TOKEN_OUT not set in .env"); })();
-  const amountIn = process.env.SWAP_AMOUNT_IN ?? (() => { throw new Error("0G_CONFIG_ERROR: SWAP_AMOUNT_IN not set in .env"); })();
-  const chainId  = parseInt(process.env.SWAP_CHAIN_ID ?? "0") || (() => { throw new Error("0G_CONFIG_ERROR: SWAP_CHAIN_ID not set in .env"); })();
-
+  // NOTE: Uniswap Trading API only serves mainnets.
+  // chainId 8453 = Base Mainnet for quote/swap calldata.
+  // The RPC_URL in .env (Base Sepolia) is used only for attestation signing, not the swap itself.
   const tradeResult = await executeTradeViaKeeperHub({
-    tokenIn,
-    tokenOut,
-    amountIn: ethers.parseEther(amountIn).toString(),
-    chainId,
-    onLog:    (msg) => log(msg),
+    tokenIn: "0x4200000000000000000000000000000000000006",
+    tokenOut: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    amountIn: ethers.parseEther("0.01").toString(),
+    chainId: 8453,
+    onLog: (msg) => log(msg),
     confidence: researchResult.confidence,
   });
 

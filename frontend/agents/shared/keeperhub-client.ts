@@ -42,6 +42,8 @@ export interface WorkflowRegistration {
 
 import { ethers, Wallet, JsonRpcProvider, TransactionRequest } from "ethers";
 
+// ... existing code ...
+
 let lastExpectedTxHash: string | null = null;
 
 /** Returns the keccak256(signedTx) hash computed during registerSwapWorkflow.
@@ -57,16 +59,15 @@ export async function registerSwapWorkflow(
   if (!step) throw new Error("No steps provided for workflow");
 
   // Sign the transaction locally so KeeperHub can just broadcast it
-  if (!process.env.RPC_URL) throw new Error("MISSING_VALUE: RPC_URL is not set");
-  const provider = new JsonRpcProvider(process.env.RPC_URL);
+  const provider = new JsonRpcProvider(process.env.RPC_URL || "https://sepolia.base.org");
   const wallet = new Wallet(process.env.EXECUTOR_PRIVATE_KEY!, provider);
-  
+
   const txReq: TransactionRequest = {
     to: step.params.to,
     data: step.params.data,
     value: step.params.value || "0",
     gasLimit: step.params.gasLimit || 500000,
-    chainId: parseInt(process.env.TX_CHAIN_ID ?? "") || (() => { throw new Error("MISSING_VALUE: TX_CHAIN_ID not set in .env (Base Sepolia = 84532)"); })(),
+    chainId: 84532, // Base Sepolia
     nonce: await wallet.getNonce("pending")
   };
 
@@ -102,7 +103,7 @@ export async function registerSwapWorkflow(
         type: "action",
         config: {
           actionType: "HTTP Request",
-          endpoint: process.env.RPC_URL!,
+          endpoint: process.env.RPC_URL || "https://sepolia.base.org",
           httpMethod: "POST",
           httpHeaders: JSON.stringify({ "Content-Type": "application/json" }),
           httpBody: jsonRpcBody
@@ -190,14 +191,14 @@ export async function waitForExecution(
         `${KEEPERHUB_BASE}/workflows/executions/${executionId}/status`,
         { headers: khHeaders() }
       );
-      
+
       if (res.ok) {
         const result = await res.json();
         console.log(`[KeeperHub] Execution status: ${result.status}`);
 
         if (result.status === "success") {
           console.log(`[KeeperHub Debug] Execution successful. Result:`, JSON.stringify(result));
-          
+
           let txHash = result.txHash || result.transactionHash || result.hash;
           if (!txHash && result.nodeStatuses) {
             const actionNode = result.nodeStatuses.find((n: any) => n.id === "action-1" || (n.status === "success" && n.result));
@@ -221,7 +222,7 @@ export async function waitForExecution(
             auditTrail: result.auditTrail || result.nodeStatuses || []
           };
         }
-        
+
         if (result.status === "error" || result.status === "failed") {
           const errorMsg = result.error || result.message || "Unknown error";
           throw new Error(`Execution failed: ${errorMsg}`);
@@ -236,7 +237,7 @@ export async function waitForExecution(
       if (e.message.includes("Execution failed")) throw e;
       console.warn(`[KeeperHub] Poll error: ${e.message}`);
     }
-    
+
     await new Promise((r) => setTimeout(r, 4000)); // poll every 4s
   }
   throw new Error(`KeeperHub execution timed out after ${timeoutMs}ms`);

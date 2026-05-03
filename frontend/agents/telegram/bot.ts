@@ -171,9 +171,9 @@ bot.command('trade', async (ctx) => {
     await runOrchestrator(strategy, async (line: string) => {
       const tag = line.includes('[Research') ? 'research'
         : line.includes('[Risk') ? 'risk'
-        : line.includes('[Executor') ? 'executor'
-        : line.includes('[Orchestrator') ? 'orchestrator'
-        : ''
+          : line.includes('[Executor') ? 'executor'
+            : line.includes('[Orchestrator') ? 'orchestrator'
+              : ''
 
       const clean = line.replace(/\[.*?\]\s*/, '').trim()
       if (!clean) return
@@ -192,18 +192,18 @@ bot.command('trade', async (ctx) => {
       if (tag === 'risk' && !phases.includes('risk')) {
         phases.push('risk')
         currentStatus = `✅ Research complete\n⏳ *Risk Guard* running…\n`
-        await bot.api.editMessageText(chatId, msgId, `🤖 *Axiom-Fi Pipeline*\n\n${currentStatus}`, { parse_mode: 'Markdown' }).catch(() => {})
+        await bot.api.editMessageText(chatId, msgId, `🤖 *Axiom-Fi Pipeline*\n\n${currentStatus}`, { parse_mode: 'Markdown' }).catch(() => { })
       } else if (tag === 'executor' && !phases.includes('executor')) {
         phases.push('executor')
         currentStatus = `✅ Research complete\n✅ Risk Guard approved\n⏳ *Executor* running…\n`
-        await bot.api.editMessageText(chatId, msgId, `🤖 *Axiom-Fi Pipeline*\n\n${currentStatus}`, { parse_mode: 'Markdown' }).catch(() => {})
+        await bot.api.editMessageText(chatId, msgId, `🤖 *Axiom-Fi Pipeline*\n\n${currentStatus}`, { parse_mode: 'Markdown' }).catch(() => { })
       }
 
       if (clean.includes('CONFIDENCE_TOO_LOW') || clean.includes('Trade ABORTED')) {
-        await bot.api.editMessageText(chatId, msgId, `⚠️ *Pipeline Aborted*\n\nReason: ${clean}`, { parse_mode: 'Markdown' }).catch(() => {})
+        await bot.api.editMessageText(chatId, msgId, `⚠️ *Pipeline Aborted*\n\nReason: ${clean}`, { parse_mode: 'Markdown' }).catch(() => { })
       }
       if (clean.includes('Trade REJECTED')) {
-        await bot.api.editMessageText(chatId, msgId, `🚫 *Risk Guard Rejected*\n\n${clean}`, { parse_mode: 'Markdown' }).catch(() => {})
+        await bot.api.editMessageText(chatId, msgId, `🚫 *Risk Guard Rejected*\n\n${clean}`, { parse_mode: 'Markdown' }).catch(() => { })
       }
     })
 
@@ -231,7 +231,7 @@ bot.command('trade', async (ctx) => {
     const history = (await read0GKV(`telegram:history:${userId}`) as any)?.trades ?? []
     history.unshift({ strategy, txHash: finalTxHash, outcome: 'executed', timestamp: Date.now(), sessionId })
     const trimmed = history.slice(0, 20) // keep last 20
-    await write0GKV({ key: `telegram:history:${userId}`, value: { trades: trimmed }, signer })
+    await write0GKV({ key: `telegram:history:${userId}`, value: { trades: trimmed }, signer }).catch(console.error)
 
     const keyboard = new InlineKeyboard()
       .url('📊 Full Analysis', `${FRONTEND_URL}/analysis?session=${sessionId}`)
@@ -245,11 +245,11 @@ bot.command('trade', async (ctx) => {
       `[KeeperHub Workflow](${keeperHubUrl})\n\n` +
       `*Agent Reputation:*\n${repLines.join('\n')}`,
       { parse_mode: 'Markdown', reply_markup: keyboard }
-    ).catch(() => {})
+    ).catch(() => { })
 
   } catch (err: any) {
     console.error('[/trade]', err)
-    await bot.api.editMessageText(chatId, msgId, `❌ *Pipeline Failed*\n\n${err.message}`, { parse_mode: 'Markdown' }).catch(() => {})
+    await bot.api.editMessageText(chatId, msgId, `❌ *Pipeline Failed*\n\n${err.message}`, { parse_mode: 'Markdown' }).catch(() => { })
   }
 })
 

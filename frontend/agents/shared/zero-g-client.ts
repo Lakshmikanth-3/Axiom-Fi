@@ -9,13 +9,11 @@
 
 import { Indexer, KvClient, Batcher, getFlowContract } from "@0gfoundation/0g-storage-ts-sdk";
 import { ethers } from "ethers";
-import * as fs   from "fs";
+import * as fs from "fs";
 import * as path from "path";
 
 const AXIOM_STREAM_ID = ethers.keccak256(ethers.toUtf8Bytes(process.env.OG_STREAM_ID ?? "axiom-default-stream"));
-// 45s: 0G Galileo testnet EVM RPC is slow — ethers.js auto-detects chain on every new provider
-// (1x eth_chainId call), which consumes time before the tx is even submitted.
-const SYNC_TIMEOUT_MS = 45_000;
+const SYNC_TIMEOUT_MS = 15_000;
 
 // ─── Local State Replica ─────────────────────────────────────────────────────
 // The Galileo testnet does not expose public KV nodes (port 6789 is unreachable).
@@ -43,9 +41,9 @@ const realConsoleLog = console.log.bind(console);
 
 // 0G Galileo testnet gas constants.
 // Galileo runs EIP-1559 (type-2 txs only). Minimum tip required by the network is 2 gwei.
-const OG_GAS_LIMIT           = BigInt(30_000_000);
-const OG_MAX_PRIORITY_FEE    = ethers.parseUnits("3",  "gwei"); // tip to validator (min 2 gwei)
-const OG_MAX_FEE             = ethers.parseUnits("20", "gwei"); // total cap (base + tip)
+const OG_GAS_LIMIT = BigInt(30_000_000);
+const OG_MAX_PRIORITY_FEE = ethers.parseUnits("3", "gwei"); // tip to validator (min 2 gwei)
+const OG_MAX_FEE = ethers.parseUnits("20", "gwei"); // total cap (base + tip)
 
 /**
  * GasOverrideWallet — extends ethers.Wallet to unconditionally inject gasLimit + gasPrice
@@ -135,13 +133,13 @@ async function execBatcherWithTimeout(
 
   const install = (fn: (...a: any[]) => void) => {
     activeInstall = fn;
-    console.log  = fn;
+    console.log = fn;
     console.info = fn;
   };
 
   const restoreIfOwner = () => {
     if (console.log === activeInstall) {
-      console.log  = realConsoleLog;
+      console.log = realConsoleLog;
       console.info = realConsoleLog;
     }
     // else: a newer batcher has taken over — leave it alone
@@ -167,7 +165,7 @@ async function execBatcherWithTimeout(
   })();
 
   // Prevent unhandled-rejection crash from the orphaned background promise
-  execPromise.catch(() => {});
+  execPromise.catch(() => { });
 
   // Hard timeout — last resort if the txHash never appears in logs.
   // We store the handle so we can cancel it on early exit.
@@ -210,28 +208,11 @@ async function execBatcherWithTimeout(
 }
 
 // ─── Helper: master signer for 0G EVM with gas overrides baked in ─────────────
-// Cached as module singletons — ethers.js auto-detects network (eth_chainId) on every
-// new JsonRpcProvider, which on the slow 0G testnet adds 5-10s before the first tx.
-// By caching we pay this cost once at startup, not on every write0GKV/write0GLog call.
-let _ogProvider: ethers.JsonRpcProvider | null = null;
-let _ogSigner:   GasOverrideWallet      | null = null;
-
 function getOgMasterSigner(): GasOverrideWallet {
   if (!process.env.DEPLOYER_PRIVATE_KEY) throw new Error("0G_CONFIG_ERROR: DEPLOYER_PRIVATE_KEY not set");
-  if (!process.env.OG_EVM_RPC)           throw new Error("0G_CONFIG_ERROR: OG_EVM_RPC not set");
-  if (!_ogProvider) {
-    // Use FetchRequest with 90s HTTP timeout — ethers default (~10s) fires before our SYNC_TIMEOUT_MS.
-    // staticNetwork skips the eth_chainId auto-detect probe entirely (0G Galileo = chain 16602).
-    const fetchReq = new ethers.FetchRequest(process.env.OG_EVM_RPC);
-    fetchReq.timeout = 90_000;
-    _ogProvider = new ethers.JsonRpcProvider(
-      fetchReq,
-      ethers.Network.from(16602), // 0G Galileo testnet — skip auto-detect
-      { staticNetwork: true }     // never re-probe the chain ID
-    );
-  }
-  if (!_ogSigner) _ogSigner = new GasOverrideWallet(process.env.DEPLOYER_PRIVATE_KEY, _ogProvider);
-  return _ogSigner;
+  if (!process.env.OG_EVM_RPC) throw new Error("0G_CONFIG_ERROR: OG_EVM_RPC not set");
+  const provider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC);
+  return new GasOverrideWallet(process.env.DEPLOYER_PRIVATE_KEY, provider);
 }
 
 // ─── 0G KV Store Write ────────────────────────────────────────────────────────
@@ -254,11 +235,11 @@ export async function write0GKV(params: {
 
   // GasOverrideWallet injects 30M gasLimit + 10 gwei at the sendTransaction level,
   // so the SDK's getFunction('submit').send() call will always get the right gas.
-  const masterSigner  = getOgMasterSigner();
-  const flowContract  = getFlowContract(process.env.OG_FLOW_CONTRACT!, masterSigner as any);
+  const masterSigner = getOgMasterSigner();
+  const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, masterSigner as any);
 
-  const batcher    = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
-  const keyBytes   = Uint8Array.from(Buffer.from(params.key, "utf-8"));
+  const batcher = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
+  const keyBytes = Uint8Array.from(Buffer.from(params.key, "utf-8"));
   const valueBytes = Uint8Array.from(Buffer.from(JSON.stringify(params.value), "utf-8"));
   (batcher as any).streamDataBuilder.set(AXIOM_STREAM_ID, keyBytes, valueBytes);
 
@@ -305,9 +286,9 @@ export async function write0GLog(params: {
   }
 
   const logEntry = JSON.stringify({
-    agentId:   params.agentId,
-    event:     params.event,
-    data:      params.data,
+    agentId: params.agentId,
+    event: params.event,
+    data: params.data,
     timestamp: Date.now(),
   });
   const key = `log:${params.agentId}:${Date.now()}`;
@@ -321,8 +302,8 @@ export async function write0GLog(params: {
   const masterSigner = getOgMasterSigner();
   const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, masterSigner as any);
 
-  const batcher    = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
-  const keyBytes   = Uint8Array.from(Buffer.from(key, "utf-8"));
+  const batcher = new Batcher(1, nodes, flowContract as any, process.env.OG_EVM_RPC!);
+  const keyBytes = Uint8Array.from(Buffer.from(key, "utf-8"));
   const valueBytes = Uint8Array.from(Buffer.from(logEntry, "utf-8"));
   (batcher as any).streamDataBuilder.set(AXIOM_STREAM_ID, keyBytes, valueBytes);
 
