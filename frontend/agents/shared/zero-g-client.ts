@@ -13,7 +13,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 const AXIOM_STREAM_ID = ethers.keccak256(ethers.toUtf8Bytes(process.env.OG_STREAM_ID ?? "axiom-default-stream"));
-const SYNC_TIMEOUT_MS = 15_000;
+const SYNC_TIMEOUT_MS = 90_000; // 0G Galileo batcher takes 20-30s; 90s gives ample margin
 
 // ─── Local State Replica ─────────────────────────────────────────────────────
 // The Galileo testnet does not expose public KV nodes (port 6789 is unreachable).
@@ -186,12 +186,11 @@ async function execBatcherWithTimeout(
   // message from appearing 15s later while the background batcher is still syncing.
   if (timeoutHandle) clearTimeout(timeoutHandle);
 
-  // After early exit, swap filteredLog for noiseSuppressor so the background
-  // batcher's ongoing output is silenced but legitimate logs still pass through.
-  if (!done) {
-    install(noiseSuppressor);
-    // execPromise.finally → restoreIfOwner() will clean up when batcher finishes
-  }
+  // After early exit (txHash captured), keep filteredLog active for the remaining
+  // batcher lifetime so any concurrent batcher output is still handled cleanly.
+  // We do NOT switch to noiseSuppressor because doing so loses any txHash that
+  // arrives after the soft exit (e.g. the 0xe121d... case where SDK was slow).
+  // restoreIfOwner() in execPromise.finally() will clean up when batcher finishes.
 
   if (!capturedTxHash && sdkError) {
     throw new Error(`0G_SDK_ERROR: ${label} failed: ${(sdkError as any).message}`);
