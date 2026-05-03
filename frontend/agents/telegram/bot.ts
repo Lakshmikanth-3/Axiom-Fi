@@ -154,6 +154,7 @@ bot.command('trade', async (ctx) => {
   const phases: string[] = []
   let sessionId = `tg-${userId}-${Date.now()}`
   let finalTxHash = ''
+  let keeperHubUrl = 'https://app.keeperhub.com'
 
   try {
     await runOrchestrator(strategy, async (line: string) => {
@@ -166,9 +167,15 @@ bot.command('trade', async (ctx) => {
       const clean = line.replace(/\[.*?\]\s*/, '').trim()
       if (!clean) return
 
-      // Capture txHash if present
+      // Capture txHash
       const txMatch = line.match(/0x[a-fA-F0-9]{64}/)
       if (txMatch) finalTxHash = txMatch[0]
+
+      // Capture KeeperHub URL
+      if (line.includes('https://app.keeperhub.com/workflows/')) {
+        const urlMatch = line.match(/https:\/\/app\.keeperhub\.com\/workflows\/[a-zA-Z0-9-]+/)
+        if (urlMatch) keeperHubUrl = urlMatch[0]
+      }
 
       // Update live message on phase transitions
       if (tag === 'risk' && !phases.includes('risk')) {
@@ -216,7 +223,7 @@ bot.command('trade', async (ctx) => {
       `✅ *Pipeline Complete!*\n\n` +
       `Strategy: _${strategy}_\n\n` +
       (finalTxHash ? `Tx: [${finalTxHash.slice(0, 10)}…](https://sepolia.basescan.org/tx/${finalTxHash})\n` : '') +
-      `[KeeperHub Workflow](https://app.keeperhub.com)\n\n` +
+      `[KeeperHub Workflow](${keeperHubUrl})\n\n` +
       `*Agent Reputation:*\n${repLines.join('\n')}`,
       { parse_mode: 'Markdown', reply_markup: keyboard }
     ).catch(() => {})
