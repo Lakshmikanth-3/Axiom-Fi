@@ -117,10 +117,10 @@ export async function write0GKV(params: {
   const masterSigner = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY!, new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!));
   const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, masterSigner as any);
 
-  // MANUALLY OVERRIDE GAS: Increase to 2M for extra safety
+  // MANUALLY OVERRIDE GAS: Increase to 10M — 0G storage can be very gas-intensive on Galileo
   const originalSubmit = flowContract.submit;
   flowContract.submit = (async (...args: any[]) => {
-    const overrides = { gasLimit: 2_000_000 };
+    const overrides = { gasLimit: 10_000_000 };
     if (args.length === 1) {
       return originalSubmit.apply(flowContract, [args[0], overrides]);
     } else {
@@ -214,10 +214,10 @@ export async function write0GLog(params: {
   const masterSigner = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY!, new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!));
   const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, masterSigner as any);
 
-  // MANUALLY OVERRIDE GAS: Increase to 2M for extra safety
+  // MANUALLY OVERRIDE GAS: Increase to 10M — 0G storage can be very gas-intensive on Galileo
   const originalSubmit = flowContract.submit;
   flowContract.submit = (async (...args: any[]) => {
-    const overrides = { gasLimit: 2_000_000 };
+    const overrides = { gasLimit: 10_000_000 };
     if (args.length === 1) {
       return originalSubmit.apply(flowContract, [args[0], overrides]);
     } else {
