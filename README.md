@@ -1,10 +1,6 @@
 # 🪐 Axiom-Fi: The Autonomous Agentic Trading Terminal
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Lakshmikanth-3/Axiom-Fi/main/frontend/public/logo.png" alt="Axiom-Fi Logo" width="200" onerror="this.style.display='none'"/>
-</p>
-
-<p align="center">
   <strong>Decentralized Agentic Intelligence · Powered by 0G Network</strong>
 </p>
 
