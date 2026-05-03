@@ -27,7 +27,7 @@ async function execBatcherWithTimeout(
   // Filtered logger: capture tx hash, suppress sync-wait noise
   const filteredLog = (...args: any[]) => {
     const msg = args.join(" ");
-    const match = msg.match(/Transaction submitted, hash: (0x[a-fA-F0-9]{64})/);
+    const match = msg.match(/(?:hash|submitted, hash:)\s*(0x[a-fA-F0-9]{64})/i);
     if (match) capturedTxHash = match[1];
     if (msg.includes("Waiting for storage node to sync")) return;
     origLog(...args);
@@ -40,8 +40,11 @@ async function execBatcherWithTimeout(
   const execPromise = (async () => {
     try {
       const [res, err] = await batcher.exec();
-      if (err) sdkError = err;
-      if (res?.txHash) capturedTxHash = res.txHash;
+      if (err) {
+        sdkError = err;
+      } else if (res) {
+        capturedTxHash = res.txHash || res.tx_hash || capturedTxHash;
+      }
     } catch (e: any) {
       sdkError = e;
     } finally {
@@ -54,7 +57,7 @@ async function execBatcherWithTimeout(
   const timeoutPromise = new Promise<void>((resolve) =>
     setTimeout(() => {
       if (!done) {
-        origLog(`\n[0G] Storage node sync taking >${SYNC_TIMEOUT_MS / 1000}s — TX is on-chain. Proceeding (background sync continues silently).\n`);
+        origLog(`\n[0G] ${label} sync taking >${SYNC_TIMEOUT_MS / 1000}s — Proceeding with background sync.\n`);
         resolve();
       }
     }, SYNC_TIMEOUT_MS)
@@ -67,7 +70,11 @@ async function execBatcherWithTimeout(
   }
 
   if (!capturedTxHash) {
-    throw new Error(`0G_ERROR: ${label} — Transaction was never submitted.`);
+    // If we missed the hash in logs but the batcher finished successfully,
+    // it's possible it was skipped or the SDK format changed.
+    origLog(`[0G Debug] ${label} finished but no hash captured. Attempting to proceed...`);
+    // Fallback: if we are here, we might have to throw or use a dummy
+    throw new Error(`0G_ERROR: ${label} — Transaction was never submitted (no hash found).`);
   }
 
   return { txHash: capturedTxHash };
@@ -138,7 +145,6 @@ export async function read0GKV(key: string, retries = 2): Promise<object | null>
       );
 
       const value = await Promise.race([readPromise, timeoutPromise]);
-
       if (value) {
         const decoded = JSON.parse(Buffer.from(value as any).toString("utf-8"));
         _stateCache.set(key, decoded); // hydrate cache
@@ -147,10 +153,11 @@ export async function read0GKV(key: string, retries = 2): Promise<object | null>
       }
       return null; // Key not found
     } catch (e: any) {
-      if (i === retries) {
-        console.warn(`[0G KV] Network read failed after ${retries + 1} attempts for ${key}: ${e.message}`);
+      console.log(`[0G KV] Read attempt ${i + 1} failed: ${e.message}`);
+      if (i < retries) {
+        await new Promise(r => setTimeout(r, 1000));
       } else {
-        await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
+        console.warn(`[0G KV] Network read failed after ${retries + 1} attempts for ${key}: ${e.message}`);
       }
     }
   }
