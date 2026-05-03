@@ -12,7 +12,7 @@
    \  \:\    \  \:\        \  \:\        \  \:\/:/     \  \:\/:/     \  \:\        \  \:\     
     \  \:\    \  \:\        \  \:\        \  \::/       \  \::/       \  \:\        \  \:\    
      \__\/     \__\/         \__\/         \__\/         \__\/         \__\/         \__\/    
-                                                                                            
+
                  DECENTRALIZED AGENTIC INTELLIGENCE · POWERED BY 0G NETWORK
 ```
 
@@ -26,10 +26,21 @@ Traditional trading bots are "black boxes." You send money, and hope it works. *
 
 ### The Pipeline Architecture:
 
-1.  **🔍 Research Agent**: Analyzes live market data (Uniswap V3 pools, sentiment, volatility) and generates a structured trade proposal.
+1.  **🔍 Research Agent**: Analyzes live market data (Uniswap V3 pools, sentiment, volatility) and generates a structured trade proposal using **0G Compute**.
 2.  **🛡️ Risk Guard Agent**: Validates the proposal against the user's historical portfolio and global risk parameters stored in **0G KV**.
 3.  **⚡ Executor Agent**: Converts the approved proposal into an on-chain workflow using **KeeperHub** and monitors the settlement.
 4.  **🪙 Orchestrator**: The "Glue" that manages state transitions, triggers **x402 Micropayments**, and anchors the entire audit trail to **0G Storage**.
+
+---
+
+## 🛠️ Infrastructure Hardening (No-Mock Policy)
+
+Axiom-Fi follows a strict **"Hard-Fail"** mandate. Unlike typical demos that use mocks when infrastructure is slow, Axiom-Fi is engineered for production stability on the **0G Galileo Testnet**:
+
+- **Singleton Provider Caching**: Optimized `JsonRpcProvider` with `staticNetwork(16602)` and extended 90s timeouts to survive testnet latency.
+- **On-Chain Audit Trails**: Every agent decision is hashed and anchored to the **0G Log Store** before the next stage proceeds.
+- **Deterministic Verification**: Every trade outcome is attested on **Base Sepolia** via the `ReputationLedger` contract.
+- **x402 Protocol**: Real cryptographic signatures used for all inter-agent micropayments.
 
 ---
 
@@ -62,29 +73,6 @@ sequenceDiagram
 
 ---
 
-## 🛠️ Visualizing the Pipeline
-
-### How it works (ASCII Art representation)
-
-**1. Data Ingestion & Analysis**
-```text
-[ Market Data ] ---> [ Research Agent ] ---> [ 0G Storage ]
-      (ETH/USDC)       (LLM + Indicators)     (Immutable Audit)
-```
-
-**2. Risk Validation**
-```text
-[ Proposal ] + [ Portfolio State (0G KV) ] ---> [ Risk Guard ] ---> [ APPROVAL ]
-```
-
-**3. Execution & Settlement**
-```text
-[ Approved ] ---> [ Executor ] ---> [ KeeperHub ] ---> [ Base Sepolia ]
-                                     (Automation)       (Uniswap V3)
-```
-
----
-
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
@@ -93,7 +81,7 @@ sequenceDiagram
 - **Telegram Bot**: Obtain a token from [@BotFather](https://t.me/botfather).
 
 ### 2. Environment Setup
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (see `.env.example` for full fields):
 ```env
 # Network
 RPC_URL=https://sepolia.base.org
@@ -101,14 +89,11 @@ OG_EVM_RPC=https://evmrpc-testnet.0g.ai
 
 # 0G Infrastructure
 OG_INDEXER_URL=https://indexer-storage-testnet-turbo.0g.ai
-OG_KV_URL=https://indexer-storage-testnet-turbo.0g.ai
-OG_STORAGE_URL=https://storage-testnet.0g.ai
 OG_FLOW_CONTRACT=0x22E03a6A89B950F1c82ec5e74F8eCa321a105296
 
-# Keys
-DEPLOYER_PRIVATE_KEY=your_private_key
-TELEGRAM_BOT_TOKEN=your_bot_token
-KEEPER_HUB_API_KEY=your_api_key
+# Contracts
+AGENT_REGISTRY_ADDRESS=0xF468bF0C4c4c1918115543C18aF392d210E89Bed
+REPUTATION_LEDGER_ADDRESS=0x3c69d3277fC72fdf52eABD96195253A836BaB427
 ```
 
 ### 3. Installation & Launch
@@ -118,6 +103,9 @@ npm install
 
 # Run the Telegram Bot (Forced Polling Mode)
 npm run bot
+
+# Run the Web Dashboard
+npm run dev
 ```
 
 ---
@@ -126,18 +114,16 @@ npm run bot
 
 ### Via Telegram (@AxiomFiTrading_bot)
 The Telegram bot is your primary interface for the autonomous pipeline.
-
 -   **/start**: Initialize the bot and receive your unique agent identity.
--   **/wallet <address>**: Register your Base Sepolia wallet. This mapping is stored securely in **0G KV**.
+-   **/wallet <address>**: Register your Base Sepolia wallet. Stored in **0G KV**.
 -   **/trade <strategy>**: Trigger the agentic pipeline.
-    - *Example*: `/trade Execute a minimal swap of 0.001 ETH to USDC if the Research agent sees stable market conditions.`
--   **/status**: Check the current health of the 0G Network nodes and your agent reputation.
+-   **/status**: Check the current health of the 0G Network nodes.
 
 ### Via Web Terminal
-Navigate to the hosted frontend (or `localhost:3000`) to view:
--   **Live Audit Trail**: Every log line streamed from the agents.
+Navigate to `localhost:3000/terminal` to view:
+-   **Live Audit Trail**: Every log line streamed from the agents in real-time.
 -   **0G Explorer Links**: Direct links to the 0G Chain Scan for every stored proof.
--   **Reputation Scoreboard**: See which agents are performing best based on accuracy and tier.
+-   **Reputation Scoreboard**: Live accuracy tracking for every registered agent.
 
 ---
 
@@ -150,3 +136,4 @@ Axiom-Fi is built on the principle of **"Don't Trust, Verify."**
 
 ## 📜 License
 Built with ❤️ for the 0G Network Hackathon. MIT License.
+�� for the 0G Network Hackathon. MIT License.

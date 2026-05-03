@@ -129,15 +129,17 @@ export default function TerminalPage() {
 
               // ── Step transitions (exact formats from agent logs) ─────────────
               // Research
-              if (msg.includes('Paying research-001')) { updateStep('research', 'running') }
+              if (msg.includes('Paying') && msg.includes('$0.005')) { updateStep('research', 'running') }
               if (msg.includes('Recommendation:') || msg.includes('RECOMMENDATION:')) { updateStep('research', 'done') }
 
-              // Risk Guard — also force-done when executor payment fires (only fires if approved)
-              if (msg.includes('Paying risk-guard-001')) { updateStep('risk-guard', 'running') }
-              if (msg.includes('[RiskGuard] Decision:') || msg.includes('Decision: APPROVED') || msg.includes('Decision: REJECTED')) {
+              // Risk Guard
+              if (msg.includes('Paying') && msg.includes('$0.003')) { updateStep('risk-guard', 'running') }
+              if (msg.includes('[RiskGuard] Decision:') || msg.includes('Decision: APPROVED') || msg.includes('Decision: REJECTED') || msg.includes('REJECTED by Risk Guard')) {
                 updateStep('risk-guard', 'done')
               }
-              if (msg.includes('Paying executor-001')) {
+
+              // Executor
+              if (msg.includes('Paying') && msg.includes('$0.010')) {
                 updateStep('risk-guard', 'done') // executor only runs after risk guard approved
                 updateStep('executor', 'running')
               }
