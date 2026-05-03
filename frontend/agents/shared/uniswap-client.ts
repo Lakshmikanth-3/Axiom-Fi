@@ -108,8 +108,7 @@ export interface SwapRequest {
   quote: any;               // the inner .quote object from QuoteResponse
   requestId: string;
   swapperSignature?: string;
-  simulate?: boolean;
-  refreshGasPrice?: boolean;
+  refreshGasPrice?: boolean; // refresh gas price before building calldata
 }
 
 export interface SwapResponse {

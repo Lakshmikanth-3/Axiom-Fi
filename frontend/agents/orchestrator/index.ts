@@ -35,17 +35,13 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   log(`[Orchestrator] Starting session ${sessionId}`);
   log(`[Orchestrator] Strategy: ${strategy}`);
 
-  // 1. Persist initial state to 0G KV (non-fatal — pipeline continues if 0G is unreachable)
-  try {
-    const { txHash: ogTx } = await write0GKV({
-      key: `orchestrator:state:${sessionId}`,
-      value: { strategy, status: "STARTED", ts: Date.now() },
-      signer: orchestratorWallet,
-    });
-    log(`[0G KV ✓] Session state written: https://chainscan-galileo.0g.ai/tx/${ogTx}`);
-  } catch (e: any) {
-    log(`[0G] KV write skipped (non-fatal): ${e.message}`);
-  }
+  // 1. Persist initial state to 0G KV — MANDATORY audit trail (fail hard per rules.md)
+  const { txHash: startTx } = await write0GKV({
+    key: `orchestrator:state:${sessionId}`,
+    value: { strategy, status: "STARTED", ts: Date.now() },
+    signer: orchestratorWallet,
+  });
+  log(`[0G KV ✓] Session state written: https://chainscan-galileo.0g.ai/tx/${startTx}`);
 
   // 2. Select agents by reputation (reads live on-chain scores)
   const researchAgentId = await selectBestAgent({ role: "research", provider });
@@ -84,14 +80,12 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
   const confidence = researchResult.confidence;
   if (confidence < 70) {
     log(`[Orchestrator] Trade ABORTED — model confidence ${confidence}% is below the 70% threshold.`);
-    try {
-      const { txHash: ogTx } = await write0GKV({
-        key: `orchestrator:state:${sessionId}`,
-        value: { strategy, status: "CONFIDENCE_TOO_LOW", confidence, ts: Date.now() },
-        signer: orchestratorWallet,
-      });
-      log(`[0G KV ✓] Abort state written: https://chainscan-galileo.0g.ai/tx/${ogTx}`);
-    } catch (e: any) { log(`[0G] KV write skipped: ${e.message}`); }
+    const { txHash: abortTx } = await write0GKV({
+      key: `orchestrator:state:${sessionId}`,
+      value: { strategy, status: "CONFIDENCE_TOO_LOW", confidence, ts: Date.now() },
+      signer: orchestratorWallet,
+    });
+    log(`[0G KV ✓] Abort state written: https://chainscan-galileo.0g.ai/tx/${abortTx}`);
     return;
   }
 
@@ -103,14 +97,12 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
 
   if (!riskResult.approved) {
     log(`[Orchestrator] Trade REJECTED by Risk Guard. Flags: ${riskResult.flags.join(", ")}`);
-    try {
-      const { txHash: ogTx } = await write0GKV({
-        key: `orchestrator:state:${sessionId}`,
-        value: { strategy, status: "REJECTED", flags: riskResult.flags, ts: Date.now() },
-        signer: orchestratorWallet,
-      });
-      log(`[0G KV ✓] Rejection state written: https://chainscan-galileo.0g.ai/tx/${ogTx}`);
-    } catch (e: any) { log(`[0G] KV write skipped: ${e.message}`); }
+    const { txHash: rejectTx } = await write0GKV({
+      key: `orchestrator:state:${sessionId}`,
+      value: { strategy, status: "REJECTED", flags: riskResult.flags, ts: Date.now() },
+      signer: orchestratorWallet,
+    });
+    log(`[0G KV ✓] Rejection state written: https://chainscan-galileo.0g.ai/tx/${rejectTx}`);
     return;
   }
 
@@ -136,15 +128,13 @@ export async function main(strategy: string, onLog?: (msg: string) => void) {
     confidence: researchResult.confidence,
   });
 
-  // 4. Mark session complete in 0G KV (non-fatal)
-  try {
-    const { txHash: ogTx } = await write0GKV({
-      key: `orchestrator:state:${sessionId}`,
-      value: { strategy, status: "COMPLETED", txHash: tradeResult.txHash, ts: Date.now() },
-      signer: orchestratorWallet,
-    });
-    log(`[0G KV ✓] Completion state written: https://chainscan-galileo.0g.ai/tx/${ogTx}`);
-  } catch (e: any) { log(`[0G] KV write skipped: ${e.message}`); }
+  // 4. Mark session complete in 0G KV — MANDATORY audit trail (fail hard per rules.md)
+  const { txHash: completeTx } = await write0GKV({
+    key: `orchestrator:state:${sessionId}`,
+    value: { strategy, status: "COMPLETED", txHash: tradeResult.txHash, ts: Date.now() },
+    signer: orchestratorWallet,
+  });
+  log(`[0G KV ✓] Completion state written: https://chainscan-galileo.0g.ai/tx/${completeTx}`);
 
   log(`[Orchestrator] ✅ Session ${sessionId} complete. Tx: ${tradeResult.txHash}`);
   return { txHash: tradeResult.txHash };

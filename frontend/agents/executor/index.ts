@@ -84,8 +84,10 @@ export async function executeTradeViaKeeperHub(params: {
   }
 
   if (!finalTxHash) {
-    log(`[Executor] WARNING: Could not resolve swap txHash. Workflow ${workflowId} confirmed.`);
-    finalTxHash = `keeperhub:${workflowId}`;
+    throw new Error(
+      `EXECUTOR_ERROR: KeeperHub workflow ${workflowId} completed but no real on-chain txHash was resolved. ` +
+      `Check KeeperHub dashboard: https://app.keeperhub.com/workflows/${workflowId}`
+    );
   }
 
   // 5. Wait for swap tx to be confirmed before outcome attestation

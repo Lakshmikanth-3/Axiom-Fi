@@ -95,6 +95,17 @@ bot.command('start', async (ctx) => {
   )
 })
 
+// ── /chatid ────────────────────────────────────────────────────────────────────
+// Prints the user's chat ID — needed to set TELEGRAM_TEST_CHAT_ID in .env
+bot.command('chatid', async (ctx) => {
+  const id = ctx.chat.id
+  console.log(`\n[TelegramBot] Chat ID for .env: TELEGRAM_TEST_CHAT_ID=${id}\n`)
+  await ctx.reply(
+    `Your chat ID is: \`${id}\`\n\nAdd this to \`.env\`:\n\`TELEGRAM_TEST_CHAT_ID=${id}\``,
+    { parse_mode: 'Markdown' }
+  )
+})
+
 // ── /wallet ────────────────────────────────────────────────────────────────────
 bot.command('wallet', async (ctx) => {
   const userId = ctx.from?.id
@@ -196,14 +207,22 @@ bot.command('trade', async (ctx) => {
       }
     })
 
-    // Fetch final reputation scores
+    // Fetch final reputation scores — read live from AgentRegistry (no hardcoded IDs)
     const repLines: string[] = []
-    for (const agentId of ['research-001', 'risk-guard-001', 'executor-001']) {
+    if (AGENT_REGISTRY_ADDRESS && REPUTATION_LEDGER_ADDRESS) {
       try {
-        const rep = await getReputation(ethers.id(agentId))
-        const acc = (Number(rep.accuracyBps) / 100).toFixed(1)
-        repLines.push(`• ${agentId}: ${TIER_NAMES[Number(rep.tier)]} · ${acc}% (${rep.totalDecisions} decisions)`)
-      } catch { /* non-critical */ }
+        const registry = new ethers.Contract(AGENT_REGISTRY_ADDRESS, REGISTRY_ABI, getProvider())
+        const allIds: string[] = await registry.getAllAgentIds()
+        for (const agentId of allIds.slice(0, 5)) { // cap at 5 for message length
+          try {
+            const agent = await registry.getAgent(agentId)
+            if (!agent.isActive) continue
+            const rep = await getReputation(agentId)
+            const acc = (Number(rep.accuracyBps) / 100).toFixed(1)
+            repLines.push(`• ${agent.name} (${agent.agentType}): ${TIER_NAMES[Number(rep.tier)]} · ${acc}%`)
+          } catch { /* skip individual agent errors */ }
+        }
+      } catch { /* non-critical — reputation section omitted if registry unreachable */ }
     }
 
     // Write trade history to 0G KV

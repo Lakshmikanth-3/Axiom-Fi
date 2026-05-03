@@ -91,7 +91,7 @@ export async function buildAndExecuteSwap(params: {
     quote: quote.quote,
     requestId: quote.requestId,
     swapperSignature,
-    simulate: true,
+    refreshGasPrice: true,
   });
 
   if (!swapTx?.swap) {
