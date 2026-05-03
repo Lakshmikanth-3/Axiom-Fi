@@ -120,7 +120,7 @@ export async function read0GKV(key: string, retries = 2): Promise<object | null>
       
       const value = await kvClient.getValue(streamId, keyBytes);
       if (value) {
-        const decoded = JSON.parse(Buffer.from(value).toString("utf-8"));
+        const decoded = JSON.parse(Buffer.from(value as any).toString("utf-8"));
         _stateCache.set(key, decoded); // hydrate cache
         console.log(`[0G KV ✓] State fetched from network for key: ${key}`);
         return decoded;
