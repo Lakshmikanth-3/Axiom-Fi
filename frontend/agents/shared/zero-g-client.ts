@@ -114,10 +114,12 @@ export async function read0GKV(key: string, retries = 2): Promise<object | null>
   
   for (let i = 0; i <= retries; i++) {
     try {
-      const kvClient = new KvClient(process.env.OG_KV_URL);
+      const url = process.env.OG_KV_URL!;
+      const kvClient = new KvClient(url);
       const keyBytes = Uint8Array.from(Buffer.from(key, "utf-8"));
       const streamId = AXIOM_STREAM_ID;
       
+      console.log(`[0G KV] Reading key: ${key} from ${url}`);
       const value = await kvClient.getValue(streamId, keyBytes);
       if (value) {
         const decoded = JSON.parse(Buffer.from(value as any).toString("utf-8"));
