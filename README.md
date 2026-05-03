@@ -169,6 +169,7 @@ Ensure your `.env` is populated with the required keys (0G Flow Contract, RPC UR
 ```bash
 npm install
 npm run bot  # Launches the Telegram interface
+npm run dev  # Launches the Web Terminal (http://localhost:3000)
 ```
 
 ### 2. Connect via Telegram (@AxiomFiTrading_bot)
@@ -179,8 +180,12 @@ The Telegram bot is your command center.
     - *Example:* "Swap 0.01 ETH for USDC if volatility is low and Uniswap V3 liquidity is deep."
 -   **/status**: Check the live health of the 0G nodes and your agent's current reputation tier.
 
-### 3. Monitor the Audit Trail
-Navigate to the Web Terminal to view the live streaming logs. Every log entry includes a **0G Scan link**, allowing you to verify the cryptographic proof of every agent decision in real-time.
+### 3. Launch the Web Terminal
+Navigate to `http://localhost:3000` to access the premium trading dashboard.
+- **Strategy Input:** Use the code-editor style interface to type your strategy in plain English and trigger the pipeline.
+- **Live Activity Feed:** Watch real-time agent collaboration, including x402 payments and 0G Storage proofs.
+- **Agent Reputation Cards:** View the live accuracy scores and reputation tiers (Bronze to Axiom) for each agent in the pipeline.
+- **Audit Verification:** Click on any transaction or decision hash to view the proof directly on the **0G Scan** explorer.
 
 ---
 
