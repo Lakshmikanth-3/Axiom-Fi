@@ -1,81 +1,152 @@
-# Axiom-Fi: The Autonomous Agentic Trading Terminal
+# 🪐 Axiom-Fi: The Autonomous Agentic Trading Terminal
 
-Axiom-Fi is a 100% decentralized, production-ready trading terminal built on the **0G Network** and **Base Sepolia**. It orchestrates a pipeline of specialized AI agents (Research, Risk Guard, and Executor) to automate DeFi strategies with complete on-chain auditability.
-
-## 🚀 Key Features
-
-- **Decentralized AI Orchestration**: Multi-agent workflow powered by **0G Compute** and **x402 Micropayments**.
-- **Immutable Audit Trails**: Every agent decision and market signal is anchored to **0G Storage** and **0G KV**.
-- **Automated DeFi Execution**: Intelligent trade routing and execution via **KeeperHub** and **Uniswap V3**.
-- **On-Chain Reputation**: Agents are registered on-chain with performance metrics recorded in a dedicated **Reputation Ledger**.
-- **Premium Terminal UI**: A real-time, streaming dashboard for strategy execution, analysis, and verification.
-
-## 🛠️ Technology Stack
-
-- **L1 Infrastructure**: [0G Network](https://0g.ai/) (Storage, KV, Compute)
-- **Execution Layer**: [Base Sepolia](https://sepolia.basescan.org/) (Smart Contracts & Settlement)
-- **Automation**: [KeeperHub](https://keeperhub.com/) (Workflow Orchestration)
-- **Micropayments**: [x402](https://x402.org/) (Agent-to-Agent Payments)
-- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
-
-## 📋 Getting Started
-
-### Prerequisites
-- Node.js 18+
-- npm or pnpm
-- Environment variables configured in `.env`
-
-### Installation
-```bash
-# Clone the repository
-git clone https://github.com/Lakshmikanth-3/Axiom-Fi
-cd Axiom-Fi
-
-# Install dependencies
-npm install
-cd frontend
-npm install
+```text
+      ___       ___           ___           ___           ___           ___           ___     
+     /  /\     /  /\         /__/\         /  /\         /  /\         /  /\         /__/\    
+    /  /::\   /  /::\        \  \:\       /  /::\       /  /::\       /  /::\        \  \:\   
+   /  /:/\:\ /  /:/\:\        \  \:\     /  /:/\:\     /  /:/\:\     /  /:/\:\        \  \:\  
+  /  /:/~/://  /:/~/::\   _____\__\:\   /  /:/  \:\   /  /:/  \:\   /  /:/~/::\   _____\__\:\ 
+ /__/:/ /://__/:/ /:/\:\ /__/::::::::\ /__/:/ \__\:\ /__/:/ \__\:\ /__/:/ /:/\:\ /__/::::::::\
+ \  \:\/:/ \  \:\/:/__\/ \  \:\~~~~~~\ \  \:\ /  /:/ \  \:\ /  /:/ \  \:\/:/__\/ \  \:\~~~~~~\
+  \  \::/   \  \::/       \  \:\        \  \:\  /:/   \  \:\  /:/   \  \::/       \  \:\      
+   \  \:\    \  \:\        \  \:\        \  \:\/:/     \  \:\/:/     \  \:\        \  \:\     
+    \  \:\    \  \:\        \  \:\        \  \::/       \  \::/       \  \:\        \  \:\    
+     \__\/     \__\/         \__\/         \__\/         \__\/         \__\/         \__\/    
+                                                                                            
+                 DECENTRALIZED AGENTIC INTELLIGENCE · POWERED BY 0G NETWORK
 ```
 
-### Running the Terminal
-```bash
-# Start the frontend and agentic API
-cd frontend
-npm run dev
+Axiom-Fi is a state-of-the-art, **100% decentralized trading terminal** that orchestrates a pipeline of specialized AI agents to automate complex DeFi strategies. Built for the **0G Network Hackathon**, it leverages **0G Storage**, **0G KV**, and **0G Compute** to ensure every decision is verifiable, immutable, and performant.
+
+---
+
+## 💡 The Core Idea: The "Agentic Pipeline"
+
+Traditional trading bots are "black boxes." You send money, and hope it works. **Axiom-Fi** breaks this paradigm by splitting the trading process into a verifiable, multi-agent pipeline where agents **pay each other** for work and **prove their decisions** on-chain.
+
+### The Pipeline Architecture:
+
+1.  **🔍 Research Agent**: Analyzes live market data (Uniswap V3 pools, sentiment, volatility) and generates a structured trade proposal.
+2.  **🛡️ Risk Guard Agent**: Validates the proposal against the user's historical portfolio and global risk parameters stored in **0G KV**.
+3.  **⚡ Executor Agent**: Converts the approved proposal into an on-chain workflow using **KeeperHub** and monitors the settlement.
+4.  **🪙 Orchestrator**: The "Glue" that manages state transitions, triggers **x402 Micropayments**, and anchors the entire audit trail to **0G Storage**.
+
+---
+
+## 🔄 The Flow of Intelligence
+
+### Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant U as User (Telegram/Web)
+    participant O as Orchestrator
+    participant R as Research Agent
+    participant RG as Risk Guard
+    participant E as Executor
+    participant OG as 0G Network (Storage/KV)
+    participant KH as KeeperHub
+
+    U->>O: /trade "Swap 0.1 ETH for USDC"
+    O->>OG: Fetch User Wallet/State
+    O->>R: Analyze Market (0G Compute)
+    R-->>O: Trade Proposal + Confidence
+    O->>RG: Validate Risk (Portfolio from 0G KV)
+    RG-->>O: Approval/Rejection
+    O->>E: Execute Trade
+    E->>KH: Trigger On-Chain Workflow
+    KH-->>E: Tx Hash
+    E->>OG: Record Outcome (Log + Proof)
+    O->>U: Update UI (Pipeline Complete)
 ```
-Navigate to `http://localhost:3000` to access the terminal.
 
-## ⚙️ Environment Variables
+---
 
-The project requires the following environment variables in a `.env` file:
+## 🛠️ Visualizing the Pipeline
 
+### How it works (ASCII Art representation)
+
+**1. Data Ingestion & Analysis**
+```text
+[ Market Data ] ---> [ Research Agent ] ---> [ 0G Storage ]
+      (ETH/USDC)       (LLM + Indicators)     (Immutable Audit)
+```
+
+**2. Risk Validation**
+```text
+[ Proposal ] + [ Portfolio State (0G KV) ] ---> [ Risk Guard ] ---> [ APPROVAL ]
+```
+
+**3. Execution & Settlement**
+```text
+[ Approved ] ---> [ Executor ] ---> [ KeeperHub ] ---> [ Base Sepolia ]
+                                     (Automation)       (Uniswap V3)
+```
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- **Node.js**: v18.x or higher
+- **Wallet**: A wallet funded with **Base Sepolia ETH** and **A0GI** (0G Testnet Tokens).
+- **Telegram Bot**: Obtain a token from [@BotFather](https://t.me/botfather).
+
+### 2. Environment Setup
+Create a `.env` file in the root directory:
 ```env
-# Network Config
+# Network
 RPC_URL=https://sepolia.base.org
 OG_EVM_RPC=https://evmrpc-testnet.0g.ai
 
 # 0G Infrastructure
-OG_INDEXER_URL=https://indexer-storage-testnet-standard.0g.ai
-OG_FLOW_CONTRACT=0x...
-OG_KV_URL=https://kv-testnet.0g.ai
+OG_INDEXER_URL=https://indexer-storage-testnet-turbo.0g.ai
+OG_KV_URL=https://indexer-storage-testnet-turbo.0g.ai
+OG_STORAGE_URL=https://storage-testnet.0g.ai
+OG_FLOW_CONTRACT=0x22E03a6A89B950F1c82ec5e74F8eCa321a105296
 
-# Agent Wallets
-AGENT_MASTER_SEED=your_mnemonic_here
-REPUTATION_LEDGER_ADDRESS=0x...
-
-# Third-party APIs
-KEEPER_HUB_API_KEY=your_key
-BASESCAN_API_KEY=your_key
+# Keys
+DEPLOYER_PRIVATE_KEY=your_private_key
+TELEGRAM_BOT_TOKEN=your_bot_token
+KEEPER_HUB_API_KEY=your_api_key
 ```
 
-## 🧪 Testing
+### 3. Installation & Launch
+```bash
+# Install root & agent dependencies
+npm install
 
-We provide a comprehensive E2E test script to validate the entire pipeline from research to on-chain settlement:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\test-e2e.ps1
+# Run the Telegram Bot (Forced Polling Mode)
+npm run bot
 ```
+
+---
+
+## 📱 Using the App
+
+### Via Telegram (@AxiomFiTrading_bot)
+The Telegram bot is your primary interface for the autonomous pipeline.
+
+-   **/start**: Initialize the bot and receive your unique agent identity.
+-   **/wallet <address>**: Register your Base Sepolia wallet. This mapping is stored securely in **0G KV**.
+-   **/trade <strategy>**: Trigger the agentic pipeline.
+    - *Example*: `/trade Execute a minimal swap of 0.001 ETH to USDC if the Research agent sees stable market conditions.`
+-   **/status**: Check the current health of the 0G Network nodes and your agent reputation.
+
+### Via Web Terminal
+Navigate to the hosted frontend (or `localhost:3000`) to view:
+-   **Live Audit Trail**: Every log line streamed from the agents.
+-   **0G Explorer Links**: Direct links to the 0G Chain Scan for every stored proof.
+-   **Reputation Scoreboard**: See which agents are performing best based on accuracy and tier.
+
+---
+
+## 🛡️ Trust & Verification
+Axiom-Fi is built on the principle of **"Don't Trust, Verify."** 
+- Every decision made by an agent is signed and stored in **0G Storage**.
+- You can verify any trade by clicking the **"Full Analysis"** button in Telegram, which pulls the raw logs directly from the decentralized storage network.
+
+---
 
 ## 📜 License
-
-MIT License. See [LICENSE](LICENSE) for details.
+Built with ❤️ for the 0G Network Hackathon. MIT License.
