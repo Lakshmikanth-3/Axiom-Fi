@@ -101,15 +101,15 @@ export async function write0GKV(params: {
   if (err || !nodes || nodes.length === 0) throw new Error(`0G_NETWORK_ERROR: Node selection failed: ${err}`);
 
   const nodeUrl = (nodes[0] as any).url || String(nodes[0]);
-  const ogSigner = connectToOg(params.signer);
-  const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, ogSigner as any);
+  
+  // ALWAYS USE MASTER SIGNER FOR STORAGE
+  const masterSigner = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY!, new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!));
+  const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, masterSigner as any);
 
-  // MANUALLY OVERRIDE GAS: The 0G SDK estimation often fails on Galileo. 
-  // We wrap the submit method to force a safe gas limit (1M).
+  // MANUALLY OVERRIDE GAS: Increase to 2M for extra safety
   const originalSubmit = flowContract.submit;
   flowContract.submit = (async (...args: any[]) => {
-    const overrides = { gasLimit: 1_000_000 };
-    // The SDK calls flow.submit(submissionStruct, overrides)
+    const overrides = { gasLimit: 2_000_000 };
     if (args.length === 1) {
       return originalSubmit.apply(flowContract, [args[0], overrides]);
     } else {
@@ -198,16 +198,15 @@ export async function write0GLog(params: {
   const [nodes, err] = await (indexer as any).selectNodes(1);
   if (err || !nodes || nodes.length === 0) throw new Error(`0G_NETWORK_ERROR: Node selection failed: ${err}`);
 
-  const ogSigner = params.signer
-    ? connectToOg(params.signer)
-    : new ethers.Wallet(process.env.OG_PRIVATE_KEY!).connect(new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!));
+  // ALWAYS USE MASTER SIGNER FOR STORAGE: Agents might not have gas tokens.
+  // The user funds the primary wallet (Deployer), so we use that for all storage costs.
+  const masterSigner = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY!, new ethers.JsonRpcProvider(process.env.OG_EVM_RPC!));
+  const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, masterSigner as any);
 
-  const flowContract = getFlowContract(process.env.OG_FLOW_CONTRACT!, ogSigner as any);
-
-  // MANUALLY OVERRIDE GAS
+  // MANUALLY OVERRIDE GAS: Increase to 2M for extra safety
   const originalSubmit = flowContract.submit;
   flowContract.submit = (async (...args: any[]) => {
-    const overrides = { gasLimit: 1_000_000 };
+    const overrides = { gasLimit: 2_000_000 };
     if (args.length === 1) {
       return originalSubmit.apply(flowContract, [args[0], overrides]);
     } else {
