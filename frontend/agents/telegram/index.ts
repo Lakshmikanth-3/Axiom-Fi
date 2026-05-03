@@ -9,8 +9,9 @@ import { bot } from './bot'
 
 async function main() {
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL
+  const forcePolling = process.env.TELEGRAM_FORCE_POLLING === 'true'
 
-  if (process.env.NODE_ENV === 'production' && webhookUrl) {
+  if (!forcePolling && process.env.NODE_ENV === 'production' && webhookUrl) {
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET
     if (!secret) throw new Error('MISSING_VALUE: TELEGRAM_WEBHOOK_SECRET required in production')
 
@@ -21,7 +22,7 @@ async function main() {
     })
     console.log('[TelegramBot] Webhook registered. Updates will be handled by /api/telegram/webhook.')
   } else {
-    console.log('[TelegramBot] Development mode. Starting long polling…')
+    console.log(`[TelegramBot] ${forcePolling ? 'Forced polling' : 'Development'} mode. Starting long polling…`)
     await bot.start({
       onStart(info) {
         console.log(`[TelegramBot] Running as @${info.username}`)
