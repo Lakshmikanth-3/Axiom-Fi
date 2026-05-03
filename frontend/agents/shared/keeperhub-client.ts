@@ -42,8 +42,6 @@ export interface WorkflowRegistration {
 
 import { ethers, Wallet, JsonRpcProvider, TransactionRequest } from "ethers";
 
-// ... existing code ...
-
 let lastExpectedTxHash: string | null = null;
 
 /** Returns the keccak256(signedTx) hash computed during registerSwapWorkflow.
@@ -59,7 +57,8 @@ export async function registerSwapWorkflow(
   if (!step) throw new Error("No steps provided for workflow");
 
   // Sign the transaction locally so KeeperHub can just broadcast it
-  const provider = new JsonRpcProvider(process.env.RPC_URL || "https://sepolia.base.org");
+  if (!process.env.RPC_URL) throw new Error("MISSING_VALUE: RPC_URL is not set");
+  const provider = new JsonRpcProvider(process.env.RPC_URL);
   const wallet = new Wallet(process.env.EXECUTOR_PRIVATE_KEY!, provider);
   
   const txReq: TransactionRequest = {
@@ -67,7 +66,7 @@ export async function registerSwapWorkflow(
     data: step.params.data,
     value: step.params.value || "0",
     gasLimit: step.params.gasLimit || 500000,
-    chainId: 84532, // Base Sepolia
+    chainId: parseInt(process.env.SWAP_CHAIN_ID ?? "") || (() => { throw new Error("MISSING_VALUE: SWAP_CHAIN_ID not set in .env"); })(),
     nonce: await wallet.getNonce("pending")
   };
 
@@ -103,7 +102,7 @@ export async function registerSwapWorkflow(
         type: "action",
         config: {
           actionType: "HTTP Request",
-          endpoint: process.env.RPC_URL || "https://sepolia.base.org",
+          endpoint: process.env.RPC_URL!,
           httpMethod: "POST",
           httpHeaders: JSON.stringify({ "Content-Type": "application/json" }),
           httpBody: jsonRpcBody

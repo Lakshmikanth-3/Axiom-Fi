@@ -231,7 +231,7 @@ bot.command('trade', async (ctx) => {
     const history = (await read0GKV(`telegram:history:${userId}`) as any)?.trades ?? []
     history.unshift({ strategy, txHash: finalTxHash, outcome: 'executed', timestamp: Date.now(), sessionId })
     const trimmed = history.slice(0, 20) // keep last 20
-    await write0GKV({ key: `telegram:history:${userId}`, value: { trades: trimmed }, signer }).catch(console.error)
+    await write0GKV({ key: `telegram:history:${userId}`, value: { trades: trimmed }, signer })
 
     const keyboard = new InlineKeyboard()
       .url('📊 Full Analysis', `${FRONTEND_URL}/analysis?session=${sessionId}`)
