@@ -5,7 +5,7 @@ import { Indexer, KvClient, Batcher, getFlowContract } from "@0gfoundation/0g-st
 import { ethers } from "ethers";
 
 const AXIOM_STREAM_ID = ethers.keccak256(ethers.toUtf8Bytes(process.env.OG_STREAM_ID ?? "axiom-default-stream"));
-const SYNC_TIMEOUT_MS = 30_000; // 30s — if node hasn't synced by then, proceed (TX is already on-chain)
+const SYNC_TIMEOUT_MS = 10_000; // 10s — if node hasn't synced by then, proceed (TX is already on-chain)
 
 // ─── In-process state cache ────────────────────────────────────────────────────
 const _stateCache = new Map<string, object>();
@@ -29,18 +29,26 @@ async function execBatcherWithTimeout(
     const msg = args.join(" ");
     const match = msg.match(/Transaction submitted, hash: (0x[a-fA-F0-9]{64})/);
     if (match) capturedTxHash = match[1];
-    // Suppress the infinite sync-wait loop messages
     if (msg.includes("Waiting for storage node to sync")) return;
     origLog(...args);
   };
 
   console.log = filteredLog;
 
-  // Start batcher — restore console.log only AFTER batcher fully finishes
-  const execPromise = (batcher as any).exec().finally(() => {
-    done = true;
-    console.log = origLog;
-  });
+  let sdkError: Error | null = null;
+
+  const execPromise = (async () => {
+    try {
+      const [res, err] = await batcher.exec();
+      if (err) sdkError = err;
+      if (res?.txHash) capturedTxHash = res.txHash;
+    } catch (e: any) {
+      sdkError = e;
+    } finally {
+      done = true;
+      console.log = origLog;
+    }
+  })();
 
   // Timeout: if sync takes too long, proceed with the already-captured tx hash
   const timeoutPromise = new Promise<void>((resolve) =>
@@ -54,9 +62,12 @@ async function execBatcherWithTimeout(
 
   await Promise.race([execPromise, timeoutPromise]);
 
+  if (sdkError) {
+    throw new Error(`0G_SDK_ERROR: ${label} failed: ${sdkError.message}`);
+  }
+
   if (!capturedTxHash) {
-    console.log = origLog; // restore before throwing
-    throw new Error(`0G_ERROR: ${label} — Transaction was never submitted (SDK never printed a hash).`);
+    throw new Error(`0G_ERROR: ${label} — Transaction was never submitted.`);
   }
 
   return { txHash: capturedTxHash };
