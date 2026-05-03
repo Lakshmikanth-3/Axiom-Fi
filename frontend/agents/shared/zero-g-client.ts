@@ -131,7 +131,14 @@ export async function read0GKV(key: string, retries = 2): Promise<object | null>
       const streamId = AXIOM_STREAM_ID;
       
       console.log(`[0G KV] Reading key: ${key} from ${url}`);
-      const value = await kvClient.getValue(streamId, keyBytes);
+      
+      const readPromise = kvClient.getValue(streamId, keyBytes);
+      const timeoutPromise = new Promise<null>((_, reject) => 
+        setTimeout(() => reject(new Error("KV_READ_TIMEOUT")), 5000)
+      );
+
+      const value = await Promise.race([readPromise, timeoutPromise]);
+
       if (value) {
         const decoded = JSON.parse(Buffer.from(value as any).toString("utf-8"));
         _stateCache.set(key, decoded); // hydrate cache
