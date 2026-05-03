@@ -219,8 +219,18 @@ let _ogSigner:   GasOverrideWallet      | null = null;
 function getOgMasterSigner(): GasOverrideWallet {
   if (!process.env.DEPLOYER_PRIVATE_KEY) throw new Error("0G_CONFIG_ERROR: DEPLOYER_PRIVATE_KEY not set");
   if (!process.env.OG_EVM_RPC)           throw new Error("0G_CONFIG_ERROR: OG_EVM_RPC not set");
-  if (!_ogProvider) _ogProvider = new ethers.JsonRpcProvider(process.env.OG_EVM_RPC);
-  if (!_ogSigner)   _ogSigner   = new GasOverrideWallet(process.env.DEPLOYER_PRIVATE_KEY, _ogProvider);
+  if (!_ogProvider) {
+    // Use FetchRequest with 90s HTTP timeout — ethers default (~10s) fires before our SYNC_TIMEOUT_MS.
+    // staticNetwork skips the eth_chainId auto-detect probe entirely (0G Galileo = chain 16602).
+    const fetchReq = new ethers.FetchRequest(process.env.OG_EVM_RPC);
+    fetchReq.timeout = 90_000;
+    _ogProvider = new ethers.JsonRpcProvider(
+      fetchReq,
+      ethers.Network.from(16602), // 0G Galileo testnet — skip auto-detect
+      { staticNetwork: true }     // never re-probe the chain ID
+    );
+  }
+  if (!_ogSigner) _ogSigner = new GasOverrideWallet(process.env.DEPLOYER_PRIVATE_KEY, _ogProvider);
   return _ogSigner;
 }
 
