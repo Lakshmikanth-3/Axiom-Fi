@@ -1,26 +1,26 @@
 {
-  "name": "openagent-root",
-  "version": "1.0.0",
-  "description": "Axiom-Fi Monorepo",
-  "workspaces": [
-    "frontend"
-  ],
-  "scripts": {
-    "agent": "npx ts-node --project frontend/agents/tsconfig.json frontend/agents/orchestrator/index.ts",
-    "bot": "npx ts-node --project frontend/agents/tsconfig.json frontend/agents/telegram/index.ts",
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
-    "install:all": "npm install && cd frontend && npm install"
-  },
-  "devDependencies": {
-    "ts-node": "^10.9.2",
-    "typescript": "^5.4.2"
-  },
-  "dependencies": {
-    "@0gfoundation/0g-ts-sdk": "^1.2.6",
-    "@0glabs/0g-serving-broker": "^0.7.5",
-    "dotenv": "^17.4.2",
-    "ethers": "6.13.1",
-    "grammy": "^1.42.0"
-  }
+    "name":  "openagent-root",
+    "version":  "1.0.0",
+    "description":  "Axiom-Fi Monorepo",
+    "workspaces":  [
+                       "frontend"
+                   ],
+    "scripts":  {
+                    "agent":  "npx ts-node --project frontend/agents/tsconfig.json frontend/agents/orchestrator/index.ts",
+                    "bot":  "npx ts-node --project frontend/agents/tsconfig.json frontend/agents/telegram/index.ts",
+                    "dev":  "cd frontend \u0026\u0026 npm run dev",
+                    "build":  "cd frontend \u0026\u0026 npm run build",
+                    "install:all":  "npm install \u0026\u0026 cd frontend \u0026\u0026 npm install"
+                },
+    "devDependencies":  {
+                            "ts-node":  "^10.9.2",
+                            "typescript":  "^5.4.2"
+                        },
+    "dependencies":  {
+                         "ethers":  "^6.0.0",
+                         "dotenv":  "^16.0.0",
+                         "grammy":  "^1.0.0",
+                         "@0gfoundation/0g-ts-sdk":  "*",
+                         "@0glabs/0g-serving-broker":  "*"
+                     }
 }
